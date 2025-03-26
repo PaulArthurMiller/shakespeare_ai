@@ -4,6 +4,56 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
+def read_shakespeare_text(file_path: str) -> str:
+    """
+    Read and validate a Shakespeare text file.
+    
+    Args:
+        file_path (str): Path to the Shakespeare text file
+        
+    Returns:
+        str: Content of the text file
+        
+    Raises:
+        FileNotFoundError: If the file doesn't exist
+        ValueError: If the file is empty
+        UnicodeDecodeError: If the file encoding is not UTF-8
+    """
+    logger = CustomLogger(
+        name="ShakespeareReader",
+        log_level="INFO",
+        log_file="logs/shakespeare_reader.log"
+    )
+    
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            logger.error(f"File not found: {file_path}")
+            raise FileNotFoundError(f"No such file: {file_path}")
+            
+        with open(path, 'r', encoding='utf-8') as file:
+            content = file.read()
+            
+        if not content.strip():
+            logger.error(f"Empty file: {file_path}")
+            raise ValueError(f"File is empty: {file_path}")
+            
+        logger.info(f"Successfully read {len(content)} characters from {file_path}")
+        return content
+        
+    except UnicodeDecodeError as e:
+        logger.error(f"File encoding error in {file_path}: {str(e)}")
+        raise UnicodeDecodeError(
+            e.encoding,
+            e.object,
+            e.start,
+            e.end,
+            f"File must be UTF-8 encoded: {file_path}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error reading {file_path}: {str(e)}")
+        raise
+
 @dataclass
 class ProcessingConfig:
     """Configuration for text processing parameters."""
