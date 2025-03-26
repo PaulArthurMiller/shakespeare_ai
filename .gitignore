@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+*.venv
+env/
+ENV/
+shakespeare_ai_env/
+
+# Database
+*.sqlite3
+*.db
+
+# Test/cache results
+.test_output/
+*.testlog
+
+# Node/Frontend
+node_modules/
+**/node_modules/
+/frontend/node_modules/
+/node_modules
+
+# Environment Variables
+.env
+.env.local
+.env.*
+
+# Logs and Debug
+*.log
+staticfiles/
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary editor/tool files
+*.bak
+*.tmp
+*.orig
+
+# Project Data Directories
+data/raw_texts/*
+data/processed_chunks/*
+data/line_corpus/*
+embeddings/chromadb_vectors/**/*.*
+
+# Temporary and Generated Files
+*.txt
+*.png
+*.jpg
+*.pdf
+
+# JSON and exceptions
+-*.json
++*.json
+!config/*.json
+!data/line_corpus/shakespeare_line_corpus.json
+!outputs/parallel_play.json
+
+# Exceptions
+!requirements.txt
+
+# Aider files
+.aider*
