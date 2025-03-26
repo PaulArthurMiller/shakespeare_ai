@@ -4,6 +4,80 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
+def extract_speaker(line: str) -> tuple[str, str]:
+    """
+    Extract speaker name and their dialogue from a line.
+    
+    Args:
+        line (str): A line of text potentially containing speaker and dialogue
+        
+    Returns:
+        tuple[str, str]: (speaker name, dialogue text) or ('', original line) if no speaker
+    """
+    speaker_match = re.match(r'^([A-Z][A-Z\s]+)\.(.+)$', line)
+    if speaker_match:
+        speaker = speaker_match.group(1).strip()
+        dialogue = speaker_match.group(2).strip()
+        return speaker, dialogue
+    return '', line.strip()
+
+def split_acts(text: str) -> dict[int, str]:
+    """
+    Split play text into acts.
+    
+    Args:
+        text (str): Full play text
+        
+    Returns:
+        dict[int, str]: Dictionary mapping act numbers to act content
+    """
+    acts = {}
+    current_act = 0
+    current_content = []
+    
+    for line in text.split('\n'):
+        act_match = re.match(r'^ACT\s+([IVX]+)', line)
+        if act_match:
+            if current_act > 0:
+                acts[current_act] = '\n'.join(current_content)
+            current_act = _roman_to_int(act_match.group(1))
+            current_content = []
+        else:
+            current_content.append(line)
+    
+    if current_content:
+        acts[current_act] = '\n'.join(current_content)
+    
+    return acts
+
+def _roman_to_int(roman: str) -> int:
+    """
+    Convert Roman numeral to integer.
+    
+    Args:
+        roman (str): Roman numeral string
+        
+    Returns:
+        int: Integer value
+    """
+    roman_values = {
+        'I': 1, 'V': 5, 'X': 10,
+        'L': 50, 'C': 100, 'D': 500, 'M': 1000
+    }
+    
+    total = 0
+    prev_value = 0
+    
+    for char in reversed(roman.upper()):
+        curr_value = roman_values[char]
+        if curr_value >= prev_value:
+            total += curr_value
+        else:
+            total -= curr_value
+        prev_value = curr_value
+        
+    return total
+
 def read_shakespeare_text(file_path: str) -> str:
     """
     Read and validate a Shakespeare text file.
@@ -124,6 +198,7 @@ class ShakespeareTextProcessor:
         - Removes scene/act headers if configured
         - Preserves character names if configured
         - Normalizes whitespace and punctuation
+        - Processes speakers and dialogue separately
 
         Args:
             text (str): Raw text to clean
@@ -139,21 +214,44 @@ class ShakespeareTextProcessor:
 
         self.logger.debug("Starting text cleaning process")
         
-        if self.config.remove_stage_directions:
-            text = re.sub(r'\[.*?\]', '', text)
-            
-        if self.config.remove_scene_headers:
-            text = re.sub(r'ACT [IVX]+.*?\n|SCENE [IVX]+.*?\n', '', text)
-            
-        if self.config.preserve_character_names:
-            # Store character names for preservation
-            character_names = set(re.findall(r'^([A-Z]{2,})\.\s', text, re.MULTILINE))
-            
-        # Normalize whitespace and punctuation
-        text = ' '.join(text.split())
+        # Split into acts first if needed
+        acts = split_acts(text) if self.config.remove_scene_headers else {0: text}
+        
+        cleaned_lines = []
+        speakers = set()
+        
+        for act_num, act_content in acts.items():
+            for line in act_content.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # Remove stage directions if configured
+                if self.config.remove_stage_directions:
+                    line = re.sub(r'\[.*?\]', '', line)
+                
+                # Extract and process speaker/dialogue
+                speaker, dialogue = extract_speaker(line)
+                if speaker:
+                    speakers.add(speaker)
+                    if self.config.preserve_character_names:
+                        cleaned_lines.append(f"{speaker}. {dialogue}")
+                    else:
+                        cleaned_lines.append(dialogue)
+                else:
+                    # Skip scene headers if configured
+                    if self.config.remove_scene_headers and re.match(r'SCENE [IVX]+', line):
+                        continue
+                    cleaned_lines.append(line)
+        
+        # Join and normalize
+        text = ' '.join(cleaned_lines)
         text = re.sub(r'\s+([.,!?;:])', r'\1', text)
         
-        self.logger.debug(f"Text cleaning completed with config: {vars(self.config)}")
+        self.logger.debug(
+            f"Text cleaning completed with config: {vars(self.config)}\n"
+            f"Found {len(speakers)} unique speakers"
+        )
         return text
 
     def extract_fragments(self, text: str, play_name: str) -> None:
