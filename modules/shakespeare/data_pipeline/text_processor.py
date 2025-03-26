@@ -4,139 +4,6 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
-logger = CustomLogger(
-    name="ShakespeareHelpers",
-    log_level="INFO",
-    log_file="logs/shakespeare_helpers.log"
-)
-
-def extract_speaker(line: str) -> tuple[str, str]:
-    """
-    Extract speaker name and their dialogue from a line.
-    
-    Args:
-        line (str): A line of text potentially containing speaker and dialogue
-        
-    Returns:
-        tuple[str, str]: (speaker name, dialogue text) or ('', original line) if no speaker
-    """
-    speaker_match = re.match(r'^([A-Z][A-Z\s]+)\.(.+)$', line)
-    if speaker_match:
-        speaker = speaker_match.group(1).strip()
-        dialogue = speaker_match.group(2).strip()
-        logger.debug(f"Extracted speaker: '{speaker}' with dialogue length: {len(dialogue)}")
-        return speaker, dialogue
-    logger.debug("No speaker found in line")
-    return '', line.strip()
-
-def split_acts(text: str) -> dict[int, str]:
-    """
-    Split play text into acts.
-    
-    Args:
-        text (str): Full play text
-        
-    Returns:
-        dict[int, str]: Dictionary mapping act numbers to act content
-    """
-    logger.info("Starting act splitting process")
-    acts = {}
-    current_act = 0
-    current_content = []
-    
-    for line in text.split('\n'):
-        act_match = re.match(r'^ACT\s+([IVX]+)', line)
-        if act_match:
-            if current_act > 0:
-                acts[current_act] = '\n'.join(current_content)
-            current_act = _roman_to_int(act_match.group(1))
-            current_content = []
-        else:
-            current_content.append(line)
-    
-    if current_content:
-        acts[current_act] = '\n'.join(current_content)
-    
-    logger.info(f"Split play into {len(acts)} acts")
-    return acts
-
-def _roman_to_int(roman: str) -> int:
-    """
-    Convert Roman numeral to integer.
-    
-    Args:
-        roman (str): Roman numeral string
-        
-    Returns:
-        int: Integer value
-    """
-    roman_values = {
-        'I': 1, 'V': 5, 'X': 10,
-        'L': 50, 'C': 100, 'D': 500, 'M': 1000
-    }
-    
-    total = 0
-    prev_value = 0
-    
-    for char in reversed(roman.upper()):
-        curr_value = roman_values[char]
-        if curr_value >= prev_value:
-            total += curr_value
-        else:
-            total -= curr_value
-        prev_value = curr_value
-        
-    return total
-
-def read_shakespeare_text(file_path: str) -> str:
-    """
-    Read and validate a Shakespeare text file.
-    
-    Args:
-        file_path (str): Path to the Shakespeare text file
-        
-    Returns:
-        str: Content of the text file
-        
-    Raises:
-        FileNotFoundError: If the file doesn't exist
-        ValueError: If the file is empty
-        UnicodeDecodeError: If the file encoding is not UTF-8
-    """
-    logger = CustomLogger(
-        name="ShakespeareReader",
-        log_level="INFO",
-        log_file="logs/shakespeare_reader.log"
-    )
-    
-    try:
-        path = Path(file_path)
-        if not path.exists():
-            logger.error(f"File not found: {file_path}")
-            raise FileNotFoundError(f"No such file: {file_path}")
-            
-        with open(path, 'r', encoding='utf-8') as file:
-            content = file.read()
-            
-        if not content.strip():
-            logger.error(f"Empty file: {file_path}")
-            raise ValueError(f"File is empty: {file_path}")
-            
-        logger.info(f"Successfully read {len(content)} characters from {file_path}")
-        return content
-        
-    except UnicodeDecodeError as e:
-        logger.error(f"File encoding error in {file_path}: {str(e)}")
-        raise UnicodeDecodeError(
-            e.encoding,
-            e.object,
-            e.start,
-            e.end,
-            f"File must be UTF-8 encoded: {file_path}"
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error reading {file_path}: {str(e)}")
-        raise
 
 @dataclass
 class ProcessingConfig:
@@ -162,6 +29,128 @@ class ShakespeareTextProcessor:
         - Preservation of text structure and character names
         - Fragment extraction with metadata
     """
+
+    def _roman_to_int(self, roman: str) -> int:
+        """
+        Convert Roman numeral to integer.
+        
+        Args:
+            roman (str): Roman numeral string
+            
+        Returns:
+            int: Integer value
+        """
+        roman_values = {
+            'I': 1, 'V': 5, 'X': 10,
+            'L': 50, 'C': 100, 'D': 500, 'M': 1000
+        }
+        
+        total = 0
+        prev_value = 0
+        
+        for char in reversed(roman.upper()):
+            curr_value = roman_values[char]
+            if curr_value >= prev_value:
+                total += curr_value
+            else:
+                total -= curr_value
+            prev_value = curr_value
+            
+        return total
+
+    def extract_speaker(self, line: str) -> tuple[str, str]:
+        """
+        Extract speaker name and their dialogue from a line.
+        
+        Args:
+            line (str): A line of text potentially containing speaker and dialogue
+            
+        Returns:
+            tuple[str, str]: (speaker name, dialogue text) or ('', original line) if no speaker
+        """
+        speaker_match = re.match(r'^([A-Z][A-Z\s]+)\.(.+)$', line)
+        if speaker_match:
+            speaker = speaker_match.group(1).strip()
+            dialogue = speaker_match.group(2).strip()
+            self.logger.debug(f"Extracted speaker: '{speaker}' with dialogue length: {len(dialogue)}")
+            return speaker, dialogue
+        self.logger.debug("No speaker found in line")
+        return '', line.strip()
+
+    def split_acts(self, text: str) -> dict[int, str]:
+        """
+        Split play text into acts.
+        
+        Args:
+            text (str): Full play text
+            
+        Returns:
+            dict[int, str]: Dictionary mapping act numbers to act content
+        """
+        self.logger.info("Starting act splitting process")
+        acts = {}
+        current_act = 0
+        current_content = []
+        
+        for line in text.split('\n'):
+            act_match = re.match(r'^ACT\s+([IVX]+)', line)
+            if act_match:
+                if current_act > 0:
+                    acts[current_act] = '\n'.join(current_content)
+                current_act = self._roman_to_int(act_match.group(1))
+                current_content = []
+            else:
+                current_content.append(line)
+        
+        if current_content:
+            acts[current_act] = '\n'.join(current_content)
+        
+        self.logger.info(f"Split play into {len(acts)} acts")
+        return acts
+
+    def read_shakespeare_text(self, file_path: str) -> str:
+        """
+        Read and validate a Shakespeare text file.
+        
+        Args:
+            file_path (str): Path to the Shakespeare text file
+            
+        Returns:
+            str: Content of the text file
+            
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            ValueError: If the file is empty
+            UnicodeDecodeError: If the file encoding is not UTF-8
+        """
+        try:
+            path = Path(file_path)
+            if not path.exists():
+                self.logger.error(f"File not found: {file_path}")
+                raise FileNotFoundError(f"No such file: {file_path}")
+                
+            with open(path, 'r', encoding='utf-8') as file:
+                content = file.read()
+                
+            if not content.strip():
+                self.logger.error(f"Empty file: {file_path}")
+                raise ValueError(f"File is empty: {file_path}")
+                
+            self.logger.info(f"Successfully read {len(content)} characters from {file_path}")
+            return content
+            
+        except UnicodeDecodeError as e:
+            self.logger.error(f"File encoding error in {file_path}: {str(e)}")
+            raise UnicodeDecodeError(
+                e.encoding,
+                e.object,
+                e.start,
+                e.end,
+                f"File must be UTF-8 encoded: {file_path}"
+            )
+        except Exception as e:
+            self.logger.error(f"Unexpected error reading {file_path}: {str(e)}")
+            raise
 
     def __init__(self, source_dir: Optional[str] = None, config: Optional[ProcessingConfig] = None):
         """
@@ -243,7 +232,7 @@ class ShakespeareTextProcessor:
         self.logger.info(f"Config state: {vars(self.config)}")
         
         # Split into acts first if needed
-        acts = split_acts(text) if self.config.remove_scene_headers else {0: text}
+        acts = self.split_acts(text) if self.config.remove_scene_headers else {0: text}
         self.logger.debug(f"Text split into {len(acts)} acts")
         
         cleaned_lines = []
@@ -260,7 +249,7 @@ class ShakespeareTextProcessor:
                     line = re.sub(r'\[.*?\]', '', line)
                 
                 # Extract and process speaker/dialogue
-                speaker, dialogue = extract_speaker(line)
+                speaker, dialogue = self.extract_speaker(line)
                 if speaker:
                     speakers.add(speaker)
                     if self.config.preserve_character_names:
@@ -344,7 +333,7 @@ class ShakespeareTextProcessor:
             play_name (str): Name of the play
         """
         try:
-            raw_text = self.load_text(play_path)
+            raw_text = self.read_shakespeare_text(play_path)
             cleaned_text = self.clean_text(raw_text)
             self.extract_fragments(cleaned_text, play_name)
             self.logger.info(f"Successfully processed {play_name}")
