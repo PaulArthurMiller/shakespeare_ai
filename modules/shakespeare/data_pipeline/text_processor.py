@@ -4,6 +4,12 @@ from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 from dataclasses import dataclass
 
+logger = CustomLogger(
+    name="ShakespeareHelpers",
+    log_level="INFO",
+    log_file="logs/shakespeare_helpers.log"
+)
+
 def extract_speaker(line: str) -> tuple[str, str]:
     """
     Extract speaker name and their dialogue from a line.
@@ -18,7 +24,9 @@ def extract_speaker(line: str) -> tuple[str, str]:
     if speaker_match:
         speaker = speaker_match.group(1).strip()
         dialogue = speaker_match.group(2).strip()
+        logger.debug(f"Extracted speaker: '{speaker}' with dialogue length: {len(dialogue)}")
         return speaker, dialogue
+    logger.debug("No speaker found in line")
     return '', line.strip()
 
 def split_acts(text: str) -> dict[int, str]:
@@ -31,6 +39,7 @@ def split_acts(text: str) -> dict[int, str]:
     Returns:
         dict[int, str]: Dictionary mapping act numbers to act content
     """
+    logger.info("Starting act splitting process")
     acts = {}
     current_act = 0
     current_content = []
@@ -48,6 +57,7 @@ def split_acts(text: str) -> dict[int, str]:
     if current_content:
         acts[current_act] = '\n'.join(current_content)
     
+    logger.info(f"Split play into {len(acts)} acts")
     return acts
 
 def _roman_to_int(roman: str) -> int:
@@ -170,6 +180,16 @@ class ShakespeareTextProcessor:
         self.config = config or ProcessingConfig()
         self.fragments: Dict[str, List[Tuple[str, dict]]] = {}
         
+        self.logger.info(
+            "Initialized ShakespeareTextProcessor with config:\n"
+            f"- Source directory: {self.source_dir}\n"
+            f"- Min fragment length: {self.config.min_fragment_length}\n"
+            f"- Max fragment length: {self.config.max_fragment_length}\n"
+            f"- Remove stage directions: {self.config.remove_stage_directions}\n"
+            f"- Remove scene headers: {self.config.remove_scene_headers}\n"
+            f"- Preserve character names: {self.config.preserve_character_names}"
+        )
+        
     def load_text(self, play_path: str) -> str:
         """
         Load a Shakespeare play from a file.
@@ -181,9 +201,14 @@ class ShakespeareTextProcessor:
             str: Raw text content of the play
         """
         try:
+            self.logger.info(f"Attempting to load play from: {play_path}")
             with open(play_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-                self.logger.info(f"Successfully loaded text from {play_path}")
+                self.logger.info(
+                    f"Successfully loaded text from {play_path}\n"
+                    f"- Characters: {len(content)}\n"
+                    f"- Lines: {len(content.splitlines())}"
+                )
                 return content
         except Exception as e:
             self.logger.error(f"Failed to load text from {play_path}: {str(e)}")
@@ -214,8 +239,12 @@ class ShakespeareTextProcessor:
 
         self.logger.debug("Starting text cleaning process")
         
+        self.logger.info("Starting text cleaning process with configuration:")
+        self.logger.info(f"Config state: {vars(self.config)}")
+        
         # Split into acts first if needed
         acts = split_acts(text) if self.config.remove_scene_headers else {0: text}
+        self.logger.debug(f"Text split into {len(acts)} acts")
         
         cleaned_lines = []
         speakers = set()
@@ -248,9 +277,12 @@ class ShakespeareTextProcessor:
         text = ' '.join(cleaned_lines)
         text = re.sub(r'\s+([.,!?;:])', r'\1', text)
         
-        self.logger.debug(
-            f"Text cleaning completed with config: {vars(self.config)}\n"
-            f"Found {len(speakers)} unique speakers"
+        self.logger.info(
+            "Text cleaning completed:\n"
+            f"- Original lines: {len(text.splitlines())}\n"
+            f"- Cleaned lines: {len(cleaned_lines)}\n"
+            f"- Unique speakers: {len(speakers)}\n"
+            f"- Speakers found: {', '.join(sorted(speakers))}"
         )
         return text
 
