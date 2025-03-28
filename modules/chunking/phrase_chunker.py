@@ -9,6 +9,16 @@ from typing import List, Dict, Any, Tuple, Optional
 from .base import ChunkBase
 from modules.utils.logger import CustomLogger
 
+try:
+    import nltk
+    from nltk import pos_tag, word_tokenize
+    from nltk.corpus import cmudict
+    NLTK_AVAILABLE = True
+    # Initialize CMU dictionary for syllable counting
+    d = cmudict.dict()
+except ImportError:
+    NLTK_AVAILABLE = False
+
 
 class PhraseChunker(ChunkBase):
     """Chunker for processing Shakespeare's text into phrases.
@@ -23,9 +33,26 @@ class PhraseChunker(ChunkBase):
         self.logger = logger or CustomLogger("PhraseChunker")
         self.logger.info("Initializing PhraseChunker")
         
+        if not NLTK_AVAILABLE:
+            self.logger.critical("NLTK is not available")
+            raise ImportError(
+                "NLTK is required for PhraseChunker. "
+                "Install it with: pip install nltk"
+            )
+        
         # Pattern for splitting on major punctuation but keeping the punctuation
         self.phrase_pattern = re.compile(r'([.!?;:])')
-        self.logger.debug("Compiled phrase pattern regex")
+        self.title_pattern = re.compile(r'^(.*?)\n', re.MULTILINE)
+        self.logger.debug("Compiled regular expressions for text parsing")
+        
+    def _count_syllables(self, word: str) -> int:
+        """Count syllables in a word using CMU dictionary."""
+        word = word.lower()
+        try:
+            return max([len([y for y in x if y[-1].isdigit()]) for x in d[word]])
+        except KeyError:
+            # Fallback: rough estimate based on vowel groups
+            return len(re.findall(r'[aeiouy]+', word))
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
         """Split the play text into phrases based on punctuation.
@@ -83,16 +110,29 @@ class PhraseChunker(ChunkBase):
                     continue
                 
                 self.logger.debug(f"Processing phrase {phrase_idx + 1}/{len(final_phrases)} from line {line_idx}")
+                # Process the phrase for POS and syllables
+                words = word_tokenize(phrase)
+                pos_tags = pos_tag(words)
+                total_syllables = sum(self._count_syllables(word) for word in words)
+                
+                # Create the chunk with comprehensive metadata
                 chunk = {
                     'chunk_id': f'phrase_{line_idx}_{phrase_idx}',
+                    'title': title,
                     'text': phrase,
-                    'parent_line_idx': line_idx,
+                    'line': line_idx,
+                    'act': current_act,
+                    'scene': current_scene,
+                    'word_index': f"{word_index},{word_index + len(words) - 1}",
+                    'syllables': total_syllables,
+                    'POS': [tag for _, tag in pos_tags],
+                    'mood': 'neutral',  # Default mood - could be enhanced with sentiment analysis
+                    'speaker': current_speaker,
                     'phrase_position': phrase_idx,
                     'total_phrases_in_line': len(final_phrases),
-                    'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase)),
-                    'char_length': len(phrase),
-                    'word_count': len(phrase.split())
+                    'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase))
                 }
+                word_index += len(words)  # Update global word index
                 chunks.append(chunk)
                 self.logger.debug(
                     f"Created chunk {chunk['chunk_id']}: "
@@ -150,20 +190,28 @@ class PhraseChunker(ChunkBase):
                 if not phrase:
                     continue
                 
+                # Process the phrase for POS and syllables
+                words = word_tokenize(phrase)
+                pos_tags = pos_tag(words)
+                total_syllables = sum(self._count_syllables(word) for word in words)
+                
                 chunk = {
                     'chunk_id': f'phrase_{line_id}_{phrase_idx}',
+                    'title': line_chunk.get('title', 'Unknown'),
                     'text': phrase,
-                    'parent_line_id': line_id,
-                    'phrase_position': phrase_idx,
-                    'total_phrases_in_line': len(final_phrases),
-                    'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase)),
-                    'char_length': len(phrase),
-                    'word_count': len(phrase.split()),
-                    # Copy metadata from parent line
+                    'line': line_chunk.get('line'),
                     'act': line_chunk.get('act'),
                     'scene': line_chunk.get('scene'),
+                    'word_index': f"{word_index},{word_index + len(words) - 1}",
+                    'syllables': total_syllables,
+                    'POS': [tag for _, tag in pos_tags],
+                    'mood': line_chunk.get('mood', 'neutral'),
                     'speaker': line_chunk.get('speaker'),
+                    'phrase_position': phrase_idx,
+                    'total_phrases_in_line': len(final_phrases),
+                    'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase))
                 }
+                word_index += len(words)  # Update global word index
                 chunks.append(chunk)
                 self.logger.debug(
                     f"Created phrase chunk {chunk['chunk_id']} from line {line_id}: "
