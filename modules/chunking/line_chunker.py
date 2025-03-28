@@ -27,7 +27,7 @@ class LineChunker(ChunkBase):
         # Regular expressions for detecting structural elements
         self.act_pattern = re.compile(r'^ACT\s+([IVX]+)', re.IGNORECASE)
         self.scene_pattern = re.compile(r'^SCENE\s+([IVX]+)', re.IGNORECASE)
-        self.speaker_pattern = re.compile(r'^([A-Z][A-Z\s]+)\.(.+)$')
+        self.speaker_pattern = re.compile(r'^([A-Z][A-Z\s]+)\.(.*?)$')
         self.logger.debug("Compiled regular expressions for text parsing")
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
@@ -72,32 +72,47 @@ class LineChunker(ChunkBase):
                 self.logger.info(f"Detected Scene {current_scene} in Act {current_act}")
                 continue
             
+            # Skip stage directions and empty lines
+            if line.startswith('(') or line.startswith('['):
+                continue
+                
             # Check for speaker and dialogue
             speaker_match = self.speaker_pattern.match(line)
             if speaker_match:
                 current_speaker = speaker_match.group(1).strip()
                 dialogue = speaker_match.group(2).strip()
-                self.logger.debug(f"Speaker detected: {current_speaker}")
-            else:
-                dialogue = line
-                if current_speaker:
-                    self.logger.debug(f"Continued dialogue from {current_speaker}")
-            
-            # Only create chunks for actual dialogue lines
-            if dialogue:
-                # Increment line index only for dialogue lines
+                if dialogue:  # Only add if there's actual dialogue
+                    self.logger.debug(f"Speaker detected: {current_speaker}")
+                    # Increment line index only for dialogue lines
+                    line_index += 1
+                    # Create the chunk with all relevant metadata
+                    chunk = {
+                        'chunk_id': f'line_{line_index}',
+                        'text': dialogue,
+                        'line_number': line_index,  # Use dialogue line numbering
+                        'act': current_act,
+                        'scene': current_scene,
+                        'speaker': current_speaker,
+                        'char_length': len(dialogue),
+                        'word_count': len(dialogue.split())
+                    }
+                    chunks.append(chunk)
+                    self.logger.debug(
+                        f"Created chunk {chunk['chunk_id']}: "
+                        f"{len(dialogue)} chars, {chunk['word_count']} words"
+                    )
+            elif current_speaker and line.strip():  # Continued dialogue
+                self.logger.debug(f"Continued dialogue from {current_speaker}")
                 line_index += 1
-                
-                # Create the chunk with all relevant metadata
                 chunk = {
                     'chunk_id': f'line_{line_index}',
-                    'text': dialogue,
-                    'line_number': line_no + 1,  # 1-based line numbering
+                    'text': line.strip(),
+                    'line_number': line_index,
                     'act': current_act,
                     'scene': current_scene,
                     'speaker': current_speaker,
-                    'char_length': len(dialogue),
-                    'word_count': len(dialogue.split())
+                    'char_length': len(line.strip()),
+                    'word_count': len(line.strip().split())
                 }
                 chunks.append(chunk)
                 self.logger.debug(
@@ -149,7 +164,7 @@ class LineChunker(ChunkBase):
         """Get a dialogue exchange starting from a specific line.
         
         Args:
-            start_index (int): The starting line index
+            start_index (int): The starting line index (1-based)
             max_lines (int): Maximum number of lines to include
             
         Returns:
@@ -160,14 +175,21 @@ class LineChunker(ChunkBase):
             f"max {max_lines} lines"
         )
         
-        if not self.chunks or start_index >= len(self.chunks):
+        # Convert 1-based start_index to 0-based for internal use
+        start_idx = start_index - 1
+        
+        # Store chunks in instance variable if not already done
+        if not hasattr(self, 'chunks'):
+            self.chunks = []
+            
+        if not self.chunks or start_idx < 0 or start_idx >= len(self.chunks):
             self.logger.warning(
                 f"Invalid start_index {start_index} for chunks of length {len(self.chunks)}"
             )
             return []
         
-        end_index = min(start_index + max_lines, len(self.chunks))
-        exchange = self.chunks[start_index:end_index]
+        end_idx = min(start_idx + max_lines, len(self.chunks))
+        exchange = self.chunks[start_idx:end_idx]
         self.logger.info(
             f"Retrieved {len(exchange)} lines of dialogue exchange"
         )
