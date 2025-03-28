@@ -152,15 +152,28 @@ class LineChunker(ChunkBase):
             elif current_speaker and line.strip():  # Continued dialogue
                 self.logger.debug(f"Continued dialogue from {current_speaker}")
                 line_index += 1
+                
+                # Process the dialogue for POS and syllables
+                words = word_tokenize(line.strip())
+                pos_tags = pos_tag(words)
+                total_syllables = sum(self._count_syllables(word) for word in words)
+                
+                # Calculate word index range
+                start_index = word_index
+                word_index += len(words)
+                
                 chunk = {
                     'chunk_id': f'line_{line_index}',
+                    'title': title,
                     'text': line.strip(),
-                    'line_number': line_index,
+                    'line': line_index,
                     'act': current_act,
                     'scene': current_scene,
-                    'speaker': current_speaker,
-                    'char_length': len(line.strip()),
-                    'word_count': len(line.strip().split())
+                    'word_index': f"{start_index},{word_index-1}",
+                    'syllables': total_syllables,
+                    'POS': [tag for _, tag in pos_tags],
+                    'mood': 'neutral',
+                    'speaker': current_speaker
                 }
                 chunks.append(chunk)
                 self.logger.debug(
@@ -201,6 +214,10 @@ class LineChunker(ChunkBase):
             List[Dict[str, Any]]: List of line chunks from the specified act and scene
         """
         self.logger.debug(f"Retrieving lines for Act {act}, Scene {scene}")
+        # Store chunks in instance variable if not already done
+        if not hasattr(self, 'chunks'):
+            self.chunks = []
+            
         act_scene_lines = [
             chunk for chunk in self.chunks 
             if chunk.get('act') == act and chunk.get('scene') == scene

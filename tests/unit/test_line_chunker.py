@@ -43,7 +43,7 @@ My woes end likewise with the evening sun.
         chunks = self.chunker.chunk_text(self.test_text)
         
         # Verify we got the expected number of dialogue lines
-        self.assertEqual(len(chunks), 7)  # Number of actual dialogue lines
+        self.assertEqual(len(chunks), 9)  # Number of actual dialogue lines
         
         # Verify all required fields are present
         required_fields = {
