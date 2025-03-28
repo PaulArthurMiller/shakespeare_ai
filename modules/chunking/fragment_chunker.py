@@ -8,6 +8,7 @@ used for fine-grained retrieval and composition.
 import re
 from typing import List, Dict, Any, Tuple, Optional
 from .base import ChunkBase
+from modules.utils.logger import CustomLogger
 
 # This module will need NLTK for POS tagging
 # Make sure to install it with: pip install nltk
