@@ -30,22 +30,29 @@ class FragmentChunker(ChunkBase):
     maintaining relationships to parent phrases and lines.
     """
     
-    def __init__(self, min_words: int = 3, max_words: int = 6):
+    def __init__(self, min_words: int = 3, max_words: int = 6, logger: Optional[CustomLogger] = None):
         """Initialize the FragmentChunker.
         
         Args:
             min_words (int): Minimum number of words in a fragment
             max_words (int): Maximum number of words in a fragment
+            logger (Optional[CustomLogger]): Logger instance for this chunker
         """
         super().__init__(chunk_type='fragment')
+        self.logger = logger or CustomLogger("FragmentChunker")
+        self.logger.info("Initializing FragmentChunker")
+        
         self.min_words = min_words
         self.max_words = max_words
+        self.logger.debug(f"Set word limits: min={min_words}, max={max_words}")
         
         if not NLTK_AVAILABLE:
+            self.logger.critical("NLTK is not available")
             raise ImportError(
                 "NLTK is required for FragmentChunker. "
                 "Install it with: pip install nltk"
             )
+        self.logger.debug("NLTK availability confirmed")
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
         """Split the text into small fragments based on POS patterns.
@@ -56,8 +63,12 @@ class FragmentChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of fragment chunks with metadata
         """
+        self.logger.info("Starting text chunking process")
+        self.logger.debug(f"Input text length: {len(text)} characters")
+        
         # This method works best with lines or phrases as input
         lines = text.strip().split('\n')
+        self.logger.debug(f"Split text into {len(lines)} raw lines")
         chunks = []
         
         for line_idx, line in enumerate(lines):
@@ -81,7 +92,12 @@ class FragmentChunker(ChunkBase):
                     'word_count': len(fragment['text'].split())
                 }
                 chunks.append(chunk)
+                self.logger.debug(
+                    f"Created chunk {chunk['chunk_id']}: "
+                    f"{len(chunk['text'])} chars, {chunk['word_count']} words"
+                )
         
+        self.logger.info(f"Completed text chunking: created {len(chunks)} fragment chunks")
         return chunks
     
     def chunk_from_phrase_chunks(self, phrase_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -93,6 +109,8 @@ class FragmentChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of fragment chunks with metadata
         """
+        self.logger.info("Starting fragment chunking from phrase chunks")
+        self.logger.debug(f"Processing {len(phrase_chunks)} phrase chunks")
         chunks = []
         
         for phrase_chunk in phrase_chunks:
@@ -121,7 +139,12 @@ class FragmentChunker(ChunkBase):
                     'speaker': phrase_chunk.get('speaker'),
                 }
                 chunks.append(chunk)
+                self.logger.debug(
+                    f"Created fragment chunk {chunk['chunk_id']} from phrase {phrase_id}: "
+                    f"{len(chunk['text'])} chars, {chunk['word_count']} words"
+                )
         
+        self.logger.info(f"Completed fragment chunking: created {len(chunks)} chunks from phrases")
         return chunks
     
     def _create_fragments_from_text(self, text: str) -> List[Dict[str, Any]]:
@@ -136,9 +159,16 @@ class FragmentChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of fragment dictionaries with text and POS tags
         """
+        self.logger.debug(f"Creating fragments from text: {len(text)} characters")
+        
         # Tokenize and tag the text
-        tokens = word_tokenize(text)
-        tagged_tokens = pos_tag(tokens)
+        try:
+            tokens = word_tokenize(text)
+            tagged_tokens = pos_tag(tokens)
+            self.logger.debug(f"Tagged {len(tokens)} tokens with POS tags")
+        except Exception as e:
+            self.logger.error(f"Error during tokenization/tagging: {str(e)}")
+            return []
         
         fragments = []
         current_fragment = []
@@ -205,6 +235,7 @@ class FragmentChunker(ChunkBase):
                 'pos_tags': current_tags.copy()
             })
         
+        self.logger.debug(f"Created {len(fragments)} fragments from text")
         return fragments
     
     def get_fragments_by_pos_pattern(self, pattern: List[str]) -> List[Dict[str, Any]]:
@@ -216,6 +247,7 @@ class FragmentChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of matching fragment chunks
         """
+        self.logger.debug(f"Searching for fragments matching POS pattern: {pattern}")
         matching_chunks = []
         
         for chunk in self.chunks:
@@ -228,6 +260,7 @@ class FragmentChunker(ChunkBase):
                         matching_chunks.append(chunk)
                         break
         
+        self.logger.info(f"Found {len(matching_chunks)} fragments matching POS pattern")
         return matching_chunks
     
     def get_fragments_by_parent(self, parent_id: str) -> List[Dict[str, Any]]:
@@ -239,8 +272,11 @@ class FragmentChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of fragment chunks for the specified parent
         """
-        return [
+        self.logger.debug(f"Retrieving fragments for parent ID: {parent_id}")
+        fragments = [
             chunk for chunk in self.chunks 
             if chunk.get('parent_phrase_id') == parent_id or 
             chunk.get('parent_line_id') == parent_id
         ]
+        self.logger.info(f"Found {len(fragments)} fragments for parent {parent_id}")
+        return fragments
