@@ -88,6 +88,15 @@ class FragmentChunker(ChunkBase):
         self.logger.info("Starting text chunking process")
         self.logger.debug(f"Input text length: {len(text)} characters")
         
+        # Extract title from first line
+        title_match = self.title_pattern.match(text)
+        title = title_match.group(1).strip() if title_match else "Unknown"
+        
+        # Initialize tracking variables
+        current_act = None
+        current_scene = None
+        current_speaker = None
+        
         # This method works best with lines or phrases as input
         lines = text.strip().split('\n')
         self.logger.debug(f"Split text into {len(lines)} raw lines")
