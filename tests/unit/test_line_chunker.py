@@ -45,16 +45,23 @@ My woes end likewise with the evening sun.
         # Verify we got the expected number of dialogue lines
         self.assertEqual(len(chunks), 7)  # Number of actual dialogue lines
         
-        # Verify basic structure of chunks
+        # Verify all required fields are present
+        required_fields = {
+            'chunk_id', 'title', 'text', 'line', 'act', 'scene',
+            'word_index', 'syllables', 'POS', 'mood', 'speaker'
+        }
+        
         for chunk in chunks:
-            self.assertIn('chunk_id', chunk)
-            self.assertIn('text', chunk)
-            self.assertIn('line_number', chunk)
-            self.assertIn('act', chunk)
-            self.assertIn('scene', chunk)
-            self.assertIn('speaker', chunk)
-            self.assertIn('char_length', chunk)
-            self.assertIn('word_count', chunk)
+            for field in required_fields:
+                self.assertIn(field, chunk, f"Missing required field: {field}")
+            
+            # Verify word_index format
+            self.assertRegex(chunk['word_index'], r'^\d+,\d+$', 
+                           "word_index should be in format 'start,end'")
+            
+            # Verify POS is a list
+            self.assertIsInstance(chunk['POS'], list,
+                                "POS should be a list of tags")
 
     def test_act_scene_detection(self):
         """Test correct detection of act and scene information."""
@@ -119,23 +126,39 @@ My woes end likewise with the evening sun.
         chunks = self.chunker.chunk_text(self.test_text)
         
         for chunk in chunks:
-            # Verify word count matches actual words in text
+            # Verify word indices are valid
+            start, end = map(int, chunk['word_index'].split(','))
+            words = chunk['text'].split()
             self.assertEqual(
-                chunk['word_count'],
-                len(chunk['text'].split())
+                end - start + 1,
+                len(words),
+                "Word index range should match number of words"
             )
             
-            # Verify character length matches actual text length
+            # Verify syllable count is reasonable
+            self.assertGreater(
+                chunk['syllables'],
+                0,
+                "Syllable count should be positive"
+            )
+            self.assertLess(
+                chunk['syllables'],
+                len(words) * 5,  # Assuming max ~5 syllables per word
+                "Syllable count seems unreasonably high"
+            )
+            
+            # Verify POS tags match number of words
             self.assertEqual(
-                chunk['char_length'],
-                len(chunk['text'])
+                len(chunk['POS']),
+                len(words),
+                "Should have one POS tag per word"
             )
 
     def test_line_continuity(self):
         """Test that line numbers are continuous and unique."""
         chunks = self.chunker.chunk_text(self.test_text)
         
-        line_numbers = [chunk['line_number'] for chunk in chunks]
+        line_numbers = [chunk['line'] for chunk in chunks]
         self.assertEqual(
             len(line_numbers),
             len(set(line_numbers)),
@@ -148,6 +171,23 @@ My woes end likewise with the evening sun.
             sorted(line_numbers),
             "Line numbers should be in ascending order"
         )
+        
+        # Verify word indices are continuous across lines
+        word_ranges = []
+        for chunk in chunks:
+            start, end = map(int, chunk['word_index'].split(','))
+            word_ranges.append((start, end))
+        
+        # Sort by start index
+        word_ranges.sort()
+        
+        # Check for gaps or overlaps
+        for i in range(len(word_ranges) - 1):
+            self.assertEqual(
+                word_ranges[i][1] + 1,
+                word_ranges[i + 1][0],
+                "Word indices should be continuous without gaps or overlaps"
+            )
 
 
 if __name__ == '__main__':
