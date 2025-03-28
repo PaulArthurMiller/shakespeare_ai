@@ -66,6 +66,16 @@ class PhraseChunker(ChunkBase):
         self.logger.info("Starting text chunking process")
         self.logger.debug(f"Input text length: {len(text)} characters")
         
+        # Extract title from first line
+        title_match = self.title_pattern.match(text)
+        title = title_match.group(1).strip() if title_match else "Unknown"
+        
+        # Initialize tracking variables
+        current_act = None
+        current_scene = None
+        current_speaker = None
+        word_index = 0  # Global word index counter
+        
         # This method assumes we're working with the output of LineChunker
         # or at least text that has been pre-processed into lines
         lines = text.strip().split('\n')
@@ -154,6 +164,7 @@ class PhraseChunker(ChunkBase):
         self.logger.info("Starting phrase chunking from line chunks")
         self.logger.debug(f"Processing {len(line_chunks)} line chunks")
         chunks = []
+        word_index = 0  # Global word index counter
         
         for line_chunk in line_chunks:
             line_text = line_chunk['text']
