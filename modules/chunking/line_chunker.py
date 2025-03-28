@@ -2,13 +2,24 @@
 Line chunker module for Shakespeare AI project.
 
 This module provides functionality to chunk Shakespeare's text into full lines,
-preserving speaker information and basic line metadata.
+preserving speaker information and comprehensive line metadata including POS tags,
+syllable counts, and word indexing.
 """
 import re
 import time
 from typing import List, Dict, Any, Tuple, Optional
 from .base import ChunkBase
 from modules.utils.logger import CustomLogger
+
+try:
+    import nltk
+    from nltk import pos_tag, word_tokenize
+    from nltk.corpus import cmudict
+    NLTK_AVAILABLE = True
+    # Initialize CMU dictionary for syllable counting
+    d = cmudict.dict()
+except ImportError:
+    NLTK_AVAILABLE = False
 
 
 class LineChunker(ChunkBase):
@@ -24,24 +35,46 @@ class LineChunker(ChunkBase):
         self.logger = logger or CustomLogger("LineChunker")
         self.logger.info("Initializing LineChunker")
         
+        if not NLTK_AVAILABLE:
+            self.logger.critical("NLTK is not available")
+            raise ImportError(
+                "NLTK is required for LineChunker. "
+                "Install it with: pip install nltk"
+            )
+        
         # Regular expressions for detecting structural elements
         self.act_pattern = re.compile(r'^ACT\s+([IVX]+)', re.IGNORECASE)
         self.scene_pattern = re.compile(r'^SCENE\s+([IVX]+)', re.IGNORECASE)
         self.speaker_pattern = re.compile(r'^([A-Z][A-Z\s]+)\.(.*?)$')
+        self.title_pattern = re.compile(r'^(.*?)\n', re.MULTILINE)
         self.logger.debug("Compiled regular expressions for text parsing")
+        
+    def _count_syllables(self, word: str) -> int:
+        """Count syllables in a word using CMU dictionary."""
+        word = word.lower()
+        try:
+            return max([len([y for y in x if y[-1].isdigit()]) for x in d[word]])
+        except KeyError:
+            # Fallback: rough estimate based on vowel groups
+            return len(re.findall(r'[aeiouy]+', word))
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
-        """Split the play text into individual lines with metadata.
+        """Split the play text into individual lines with comprehensive metadata.
         
         Args:
             text (str): The play text to process
             
         Returns:
-            List[Dict[str, Any]]: List of line chunks with metadata
+            List[Dict[str, Any]]: List of line chunks with metadata including POS tags,
+                                syllable counts, and word indexing
         """
         start_time = time.time()
         self.logger.info("Starting text chunking process")
         self.logger.debug(f"Input text length: {len(text)} characters")
+        
+        # Extract title from first line
+        title_match = self.title_pattern.match(text)
+        title = title_match.group(1).strip() if title_match else "Unknown"
         
         lines = text.strip().split('\n')
         self.logger.debug(f"Split text into {len(lines)} raw lines")
@@ -51,6 +84,7 @@ class LineChunker(ChunkBase):
         current_scene = None
         current_speaker = None
         line_index = 0
+        word_index = 0  # Global word index counter
         
         for line_no, line in enumerate(lines):
             line = line.strip()
@@ -85,16 +119,30 @@ class LineChunker(ChunkBase):
                     self.logger.debug(f"Speaker detected: {current_speaker}")
                     # Increment line index only for dialogue lines
                     line_index += 1
-                    # Create the chunk with all relevant metadata
+                    # Process the dialogue for POS and syllables
+                    words = word_tokenize(dialogue)
+                    pos_tags = pos_tag(words)
+                    
+                    # Calculate word index range
+                    start_index = word_index
+                    word_index += len(words)
+                    
+                    # Calculate total syllables
+                    total_syllables = sum(self._count_syllables(word) for word in words)
+                    
+                    # Create the chunk with comprehensive metadata
                     chunk = {
                         'chunk_id': f'line_{line_index}',
+                        'title': title,
                         'text': dialogue,
-                        'line_number': line_index,  # Use dialogue line numbering
+                        'line': line_index,  # Use dialogue line numbering
                         'act': current_act,
                         'scene': current_scene,
-                        'speaker': current_speaker,
-                        'char_length': len(dialogue),
-                        'word_count': len(dialogue.split())
+                        'word_index': f"{start_index},{word_index-1}",
+                        'syllables': total_syllables,
+                        'POS': [tag for _, tag in pos_tags],
+                        'mood': 'neutral',  # Default mood - could be enhanced with sentiment analysis
+                        'speaker': current_speaker
                     }
                     chunks.append(chunk)
                     self.logger.debug(
