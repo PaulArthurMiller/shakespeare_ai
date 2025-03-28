@@ -190,34 +190,53 @@ class PhraseChunker(ChunkBase):
         self.logger.info(f"Found {len(phrases)} phrases for parent line {parent_line_id}")
         return phrases
     
-    def get_phrases_with_punctuation(self, punctuation_type: str = None) -> List[Dict[str, Any]]:
+    def get_phrases_with_punctuation(self, punctuation_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get phrases that end with specific punctuation or all punctuated phrases.
         
         Args:
-            punctuation_type (str, optional): Specific punctuation to filter by (e.g., '.', '!').
-                                             If None, returns all phrases ending with any punctuation.
+            punctuation_type (Optional[str]): Specific punctuation mark to filter by (e.g., '.', '!', '?', ';', ':').
+                                            If None, returns all phrases ending with any punctuation.
             
         Returns:
             List[Dict[str, Any]]: List of phrase chunks with the specified punctuation
+            
+        Examples:
+            >>> chunker.get_phrases_with_punctuation('.')  # Get all phrases ending with periods
+            >>> chunker.get_phrases_with_punctuation('!')  # Get all exclamatory phrases
+            >>> chunker.get_phrases_with_punctuation()     # Get all punctuated phrases
         """
+        valid_punct = {'.', '!', '?', ';', ':', ','}
+        
+        if punctuation_type and punctuation_type not in valid_punct:
+            self.logger.warning(
+                f"Invalid punctuation type '{punctuation_type}'. "
+                f"Valid types are: {', '.join(sorted(valid_punct))}"
+            )
+            return []
+            
         self.logger.debug(
             f"Retrieving phrases with punctuation: "
             f"{'any' if punctuation_type is None else punctuation_type}"
         )
         
-        if punctuation_type:
-            phrases = [
-                chunk for chunk in self.chunks 
-                if chunk.get('text', '').endswith(punctuation_type)
-            ]
-            self.logger.info(
-                f"Found {len(phrases)} phrases ending with '{punctuation_type}'"
-            )
-        else:
-            phrases = [
-                chunk for chunk in self.chunks 
-                if chunk.get('ends_with_punctuation', False)
-            ]
-            self.logger.info(f"Found {len(phrases)} phrases with punctuation")
-        
-        return phrases
+        try:
+            if punctuation_type:
+                phrases = [
+                    chunk for chunk in self.chunks 
+                    if chunk.get('text', '').strip().endswith(punctuation_type)
+                ]
+                self.logger.info(
+                    f"Found {len(phrases)} phrases ending with '{punctuation_type}'"
+                )
+            else:
+                phrases = [
+                    chunk for chunk in self.chunks 
+                    if chunk.get('ends_with_punctuation', False)
+                ]
+                self.logger.info(f"Found {len(phrases)} phrases with punctuation")
+            
+            return phrases
+            
+        except Exception as e:
+            self.logger.error(f"Error retrieving punctuated phrases: {str(e)}")
+            return []
