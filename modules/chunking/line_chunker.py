@@ -5,8 +5,10 @@ This module provides functionality to chunk Shakespeare's text into full lines,
 preserving speaker information and basic line metadata.
 """
 import re
+import time
 from typing import List, Dict, Any, Tuple, Optional
 from .base import ChunkBase
+from modules.utils.logger import CustomLogger
 
 
 class LineChunker(ChunkBase):
@@ -16,13 +18,17 @@ class LineChunker(ChunkBase):
     maintaining act/scene structure information.
     """
     
-    def __init__(self):
+    def __init__(self, logger: Optional[CustomLogger] = None):
         """Initialize the LineChunker."""
         super().__init__(chunk_type='line')
+        self.logger = logger or CustomLogger("LineChunker")
+        self.logger.info("Initializing LineChunker")
+        
         # Regular expressions for detecting structural elements
         self.act_pattern = re.compile(r'^ACT\s+([IVX]+)', re.IGNORECASE)
         self.scene_pattern = re.compile(r'^SCENE\s+([IVX]+)', re.IGNORECASE)
         self.speaker_pattern = re.compile(r'^([A-Z][A-Z\s]+)\.(.+)$')
+        self.logger.debug("Compiled regular expressions for text parsing")
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
         """Split the play text into individual lines with metadata.
@@ -33,7 +39,12 @@ class LineChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of line chunks with metadata
         """
+        start_time = time.time()
+        self.logger.info("Starting text chunking process")
+        self.logger.debug(f"Input text length: {len(text)} characters")
+        
         lines = text.strip().split('\n')
+        self.logger.debug(f"Split text into {len(lines)} raw lines")
         chunks = []
         
         current_act = None
@@ -51,12 +62,14 @@ class LineChunker(ChunkBase):
             if act_match:
                 current_act = act_match.group(1)
                 current_scene = None  # Reset scene when act changes
+                self.logger.info(f"Detected Act {current_act}")
                 continue
             
             # Check for scene markers
             scene_match = self.scene_pattern.match(line)
             if scene_match:
                 current_scene = scene_match.group(1)
+                self.logger.info(f"Detected Scene {current_scene} in Act {current_act}")
                 continue
             
             # Check for speaker and dialogue
@@ -64,8 +77,11 @@ class LineChunker(ChunkBase):
             if speaker_match:
                 current_speaker = speaker_match.group(1).strip()
                 dialogue = speaker_match.group(2).strip()
+                self.logger.debug(f"Speaker detected: {current_speaker}")
             else:
                 dialogue = line
+                if current_speaker:
+                    self.logger.debug(f"Continued dialogue from {current_speaker}")
             
             # Only create chunks for actual dialogue lines
             if dialogue:
@@ -84,7 +100,17 @@ class LineChunker(ChunkBase):
                     'word_count': len(dialogue.split())
                 }
                 chunks.append(chunk)
+                self.logger.debug(
+                    f"Created chunk {chunk['chunk_id']}: "
+                    f"{len(dialogue)} chars, {chunk['word_count']} words"
+                )
         
+        end_time = time.time()
+        processing_time = end_time - start_time
+        self.logger.info(
+            f"Completed text chunking: {len(chunks)} chunks created "
+            f"in {processing_time:.2f} seconds"
+        )
         return chunks
     
     def get_speaker_lines(self, speaker: str) -> List[Dict[str, Any]]:
@@ -96,7 +122,10 @@ class LineChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of line chunks for the specified speaker
         """
-        return [chunk for chunk in self.chunks if chunk.get('speaker') == speaker]
+        self.logger.debug(f"Retrieving lines for speaker: {speaker}")
+        speaker_lines = [chunk for chunk in self.chunks if chunk.get('speaker') == speaker]
+        self.logger.info(f"Found {len(speaker_lines)} lines for speaker {speaker}")
+        return speaker_lines
     
     def get_lines_by_act_scene(self, act: str, scene: str) -> List[Dict[str, Any]]:
         """Get all lines from a specific act and scene.
@@ -108,10 +137,13 @@ class LineChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of line chunks from the specified act and scene
         """
-        return [
+        self.logger.debug(f"Retrieving lines for Act {act}, Scene {scene}")
+        act_scene_lines = [
             chunk for chunk in self.chunks 
             if chunk.get('act') == act and chunk.get('scene') == scene
         ]
+        self.logger.info(f"Found {len(act_scene_lines)} lines in Act {act}, Scene {scene}")
+        return act_scene_lines
     
     def get_dialogue_exchange(self, start_index: int, max_lines: int = 10) -> List[Dict[str, Any]]:
         """Get a dialogue exchange starting from a specific line.
@@ -123,8 +155,20 @@ class LineChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of consecutive line chunks
         """
+        self.logger.debug(
+            f"Retrieving dialogue exchange from index {start_index}, "
+            f"max {max_lines} lines"
+        )
+        
         if not self.chunks or start_index >= len(self.chunks):
+            self.logger.warning(
+                f"Invalid start_index {start_index} for chunks of length {len(self.chunks)}"
+            )
             return []
         
         end_index = min(start_index + max_lines, len(self.chunks))
-        return self.chunks[start_index:end_index]
+        exchange = self.chunks[start_index:end_index]
+        self.logger.info(
+            f"Retrieved {len(exchange)} lines of dialogue exchange"
+        )
+        return exchange
