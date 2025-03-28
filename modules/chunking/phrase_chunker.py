@@ -5,8 +5,9 @@ This module provides functionality to chunk Shakespeare's text into phrases
 based on punctuation breaks, preserving the relationship to parent lines.
 """
 import re
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from .base import ChunkBase
+from modules.utils.logger import CustomLogger
 
 
 class PhraseChunker(ChunkBase):
@@ -16,11 +17,15 @@ class PhraseChunker(ChunkBase):
     and maintains the relationship to the original line.
     """
     
-    def __init__(self):
+    def __init__(self, logger: Optional[CustomLogger] = None):
         """Initialize the PhraseChunker."""
         super().__init__(chunk_type='phrase')
+        self.logger = logger or CustomLogger("PhraseChunker")
+        self.logger.info("Initializing PhraseChunker")
+        
         # Pattern for splitting on major punctuation but keeping the punctuation
         self.phrase_pattern = re.compile(r'([.!?;:])')
+        self.logger.debug("Compiled phrase pattern regex")
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
         """Split the play text into phrases based on punctuation.
@@ -31,9 +36,13 @@ class PhraseChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of phrase chunks with metadata
         """
+        self.logger.info("Starting text chunking process")
+        self.logger.debug(f"Input text length: {len(text)} characters")
+        
         # This method assumes we're working with the output of LineChunker
         # or at least text that has been pre-processed into lines
         lines = text.strip().split('\n')
+        self.logger.debug(f"Split text into {len(lines)} raw lines")
         chunks = []
         
         for line_idx, line in enumerate(lines):
@@ -73,6 +82,7 @@ class PhraseChunker(ChunkBase):
                 if not phrase:
                     continue
                 
+                self.logger.debug(f"Processing phrase {phrase_idx + 1}/{len(final_phrases)} from line {line_idx}")
                 chunk = {
                     'chunk_id': f'phrase_{line_idx}_{phrase_idx}',
                     'text': phrase,
@@ -84,7 +94,12 @@ class PhraseChunker(ChunkBase):
                     'word_count': len(phrase.split())
                 }
                 chunks.append(chunk)
+                self.logger.debug(
+                    f"Created chunk {chunk['chunk_id']}: "
+                    f"{len(phrase)} chars, {chunk['word_count']} words"
+                )
         
+        self.logger.info(f"Completed text chunking: created {len(chunks)} phrase chunks")
         return chunks
     
     def chunk_from_line_chunks(self, line_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -96,6 +111,8 @@ class PhraseChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of phrase chunks with metadata
         """
+        self.logger.info("Starting phrase chunking from line chunks")
+        self.logger.debug(f"Processing {len(line_chunks)} line chunks")
         chunks = []
         
         for line_chunk in line_chunks:
@@ -148,7 +165,12 @@ class PhraseChunker(ChunkBase):
                     'speaker': line_chunk.get('speaker'),
                 }
                 chunks.append(chunk)
+                self.logger.debug(
+                    f"Created phrase chunk {chunk['chunk_id']} from line {line_id}: "
+                    f"{len(phrase)} chars, {chunk['word_count']} words"
+                )
         
+        self.logger.info(f"Completed phrase chunking: created {len(chunks)} chunks from line chunks")
         return chunks
     
     def get_phrases_by_parent_line(self, parent_line_id: str) -> List[Dict[str, Any]]:
@@ -160,10 +182,13 @@ class PhraseChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of phrase chunks for the specified parent line
         """
-        return [
+        self.logger.debug(f"Retrieving phrases for parent line: {parent_line_id}")
+        phrases = [
             chunk for chunk in self.chunks 
             if chunk.get('parent_line_id') == parent_line_id
         ]
+        self.logger.info(f"Found {len(phrases)} phrases for parent line {parent_line_id}")
+        return phrases
     
     def get_phrases_with_punctuation(self, punctuation_type: str = None) -> List[Dict[str, Any]]:
         """Get phrases that end with specific punctuation or all punctuated phrases.
@@ -175,13 +200,24 @@ class PhraseChunker(ChunkBase):
         Returns:
             List[Dict[str, Any]]: List of phrase chunks with the specified punctuation
         """
+        self.logger.debug(
+            f"Retrieving phrases with punctuation: "
+            f"{'any' if punctuation_type is None else punctuation_type}"
+        )
+        
         if punctuation_type:
-            return [
+            phrases = [
                 chunk for chunk in self.chunks 
                 if chunk.get('text', '').endswith(punctuation_type)
             ]
+            self.logger.info(
+                f"Found {len(phrases)} phrases ending with '{punctuation_type}'"
+            )
         else:
-            return [
+            phrases = [
                 chunk for chunk in self.chunks 
                 if chunk.get('ends_with_punctuation', False)
             ]
+            self.logger.info(f"Found {len(phrases)} phrases with punctuation")
+        
+        return phrases
