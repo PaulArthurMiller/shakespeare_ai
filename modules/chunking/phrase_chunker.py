@@ -113,6 +113,9 @@ class PhraseChunker(ChunkBase):
                     else:
                         final_phrases.append(part.strip())
             
+            # Process the full line first to get total word positions
+            full_line_words = word_tokenize(line)
+            
             # Create chunks for each phrase
             for phrase_idx, phrase in enumerate(final_phrases):
                 phrase = phrase.strip()
@@ -121,9 +124,20 @@ class PhraseChunker(ChunkBase):
                 
                 self.logger.debug(f"Processing phrase {phrase_idx + 1}/{len(final_phrases)} from line {line_idx}")
                 # Process the phrase for POS and syllables
-                words = word_tokenize(phrase)
-                pos_tags = pos_tag(words)
-                total_syllables = sum(self._count_syllables(word) for word in words)
+                phrase_words = word_tokenize(phrase)
+                pos_tags = pos_tag(phrase_words)
+                total_syllables = sum(self._count_syllables(word) for word in phrase_words)
+                
+                # Find where this phrase starts in the full line
+                phrase_start = -1
+                for i in range(len(full_line_words) - len(phrase_words) + 1):
+                    if full_line_words[i:i+len(phrase_words)] == phrase_words:
+                        phrase_start = i
+                        break
+                
+                if phrase_start == -1:
+                    self.logger.warning(f"Could not find phrase position in line: {phrase}")
+                    continue
                 
                 # Create the chunk with comprehensive metadata
                 chunk = {
@@ -133,7 +147,7 @@ class PhraseChunker(ChunkBase):
                     'line': line_idx,
                     'act': current_act,
                     'scene': current_scene,
-                    'word_index': f"{word_index},{word_index + len(words) - 1}",
+                    'word_index': f"{phrase_start},{phrase_start + len(phrase_words) - 1}",
                     'syllables': total_syllables,
                     'POS': [tag for _, tag in pos_tags],
                     'mood': 'neutral',  # Default mood - could be enhanced with sentiment analysis
@@ -142,7 +156,6 @@ class PhraseChunker(ChunkBase):
                     'total_phrases_in_line': len(final_phrases),
                     'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase))
                 }
-                word_index += len(words)  # Update global word index
                 chunks.append(chunk)
                 self.logger.debug(
                     f"Created chunk {chunk['chunk_id']}: "
@@ -195,6 +208,9 @@ class PhraseChunker(ChunkBase):
                     else:
                         final_phrases.append(part.strip())
             
+            # Process the full line first to get total word positions
+            full_line_words = word_tokenize(line_chunk['text'])
+            
             # Create chunks for each phrase
             for phrase_idx, phrase in enumerate(final_phrases):
                 phrase = phrase.strip()
@@ -202,9 +218,20 @@ class PhraseChunker(ChunkBase):
                     continue
                 
                 # Process the phrase for POS and syllables
-                words = word_tokenize(phrase)
-                pos_tags = pos_tag(words)
-                total_syllables = sum(self._count_syllables(word) for word in words)
+                phrase_words = word_tokenize(phrase)
+                pos_tags = pos_tag(phrase_words)
+                total_syllables = sum(self._count_syllables(word) for word in phrase_words)
+                
+                # Find where this phrase starts in the full line
+                phrase_start = -1
+                for i in range(len(full_line_words) - len(phrase_words) + 1):
+                    if full_line_words[i:i+len(phrase_words)] == phrase_words:
+                        phrase_start = i
+                        break
+                
+                if phrase_start == -1:
+                    self.logger.warning(f"Could not find phrase position in line: {phrase}")
+                    continue
                 
                 chunk = {
                     'chunk_id': f'phrase_{line_id}_{phrase_idx}',
@@ -213,7 +240,7 @@ class PhraseChunker(ChunkBase):
                     'line': line_chunk.get('line'),
                     'act': line_chunk.get('act'),
                     'scene': line_chunk.get('scene'),
-                    'word_index': f"{word_index},{word_index + len(words) - 1}",
+                    'word_index': f"{phrase_start},{phrase_start + len(phrase_words) - 1}",
                     'syllables': total_syllables,
                     'POS': [tag for _, tag in pos_tags],
                     'mood': line_chunk.get('mood', 'neutral'),
@@ -222,7 +249,6 @@ class PhraseChunker(ChunkBase):
                     'total_phrases_in_line': len(final_phrases),
                     'ends_with_punctuation': bool(re.search(r'[.!?;:,]$', phrase))
                 }
-                word_index += len(words)  # Update global word index
                 chunks.append(chunk)
                 self.logger.debug(
                     f"Created phrase chunk {chunk['chunk_id']} from line {line_id}: "
