@@ -41,6 +41,14 @@ class LineChunker(ChunkBase):
                 "NLTK is required for LineChunker. "
                 "Install it with: pip install nltk"
             )
+            
+        try:
+            # Initialize tokenizer
+            from nltk.tokenize import word_tokenize as nltk_word_tokenize
+            self._tokenize = nltk_word_tokenize
+        except ImportError:
+            self.logger.warning("NLTK word_tokenize not available, using basic split()")
+            self._tokenize = lambda x: x.split()
         
         # Regular expressions for detecting structural elements
         self.act_pattern = re.compile(r'^ACT\s+([IVX]+)', re.IGNORECASE)
@@ -119,16 +127,24 @@ class LineChunker(ChunkBase):
                     self.logger.debug(f"Speaker detected: {current_speaker}")
                     # Increment line index only for dialogue lines
                     line_index += 1
-                    # Process the dialogue for POS and syllables
-                    words = word_tokenize(dialogue)
-                    pos_tags = pos_tag(words)
-                    
-                    # Calculate word index range
-                    start_index = word_index
-                    word_index += len(words)
-                    
-                    # Calculate total syllables
-                    total_syllables = sum(self._count_syllables(word) for word in words)
+                    try:
+                        # Process the dialogue for POS and syllables
+                        words = self._tokenize(dialogue)
+                        pos_tags = pos_tag(words) if NLTK_AVAILABLE else [('', '') for _ in words]
+                
+                        # Calculate word index range
+                        start_index = word_index
+                        word_index += len(words)
+                
+                        # Calculate total syllables
+                        total_syllables = sum(self._count_syllables(word) for word in words)
+                    except Exception as e:
+                        self.logger.error(f"Error processing dialogue: {str(e)}")
+                        words = dialogue.split()
+                        pos_tags = [('', '') for _ in words]
+                        start_index = word_index
+                        word_index += len(words)
+                        total_syllables = len(words)  # Fallback
                     
                     # Create the chunk with comprehensive metadata
                     chunk = {

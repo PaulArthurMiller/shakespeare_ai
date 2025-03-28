@@ -59,9 +59,13 @@ My woes end likewise with the evening sun.
             self.assertRegex(chunk['word_index'], r'^\d+,\d+$', 
                            "word_index should be in format 'start,end'")
             
-            # Verify POS is a list
+            # Verify POS is a list of strings
             self.assertIsInstance(chunk['POS'], list,
                                 "POS should be a list of tags")
+            # POS tags might be empty if NLTK is not fully available
+            if chunk['POS']:
+                self.assertTrue(all(isinstance(tag, str) for tag in chunk['POS']),
+                              "POS tags should be strings")
 
     def test_act_scene_detection(self):
         """Test correct detection of act and scene information."""
