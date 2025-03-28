@@ -53,7 +53,28 @@ class FragmentChunker(ChunkBase):
                 "NLTK is required for FragmentChunker. "
                 "Install it with: pip install nltk"
             )
+            
+        # Initialize CMU dictionary for syllable counting
+        try:
+            from nltk.corpus import cmudict
+            self.d = cmudict.dict()
+        except ImportError:
+            self.logger.warning("CMU Dictionary not available - using fallback syllable counting")
+            self.d = None
+            
+        self.title_pattern = re.compile(r'^(.*?)\n', re.MULTILINE)
         self.logger.debug("NLTK availability confirmed")
+        
+    def _count_syllables(self, word: str) -> int:
+        """Count syllables in a word using CMU dictionary."""
+        word = word.lower()
+        try:
+            if self.d:
+                return max([len([y for y in x if y[-1].isdigit()]) for x in self.d[word]])
+        except KeyError:
+            pass
+        # Fallback: rough estimate based on vowel groups
+        return len(re.findall(r'[aeiouy]+', word))
     
     def chunk_text(self, text: str) -> List[Dict[str, Any]]:
         """Split the text into small fragments based on POS patterns.
@@ -82,15 +103,38 @@ class FragmentChunker(ChunkBase):
             
             # Add metadata and collect all fragments
             for frag_idx, fragment in enumerate(line_fragments):
+                # Calculate word indices for this fragment within the line
+                line_words = word_tokenize(line)
+                fragment_words = word_tokenize(fragment['text'])
+                fragment_start = -1
+                
+                # Find where this fragment starts in the full line
+                for i in range(len(line_words) - len(fragment_words) + 1):
+                    if line_words[i:i+len(fragment_words)] == fragment_words:
+                        fragment_start = i
+                        break
+                
+                if fragment_start == -1:
+                    self.logger.warning(f"Could not find fragment position in line: {fragment['text']}")
+                    continue
+                
+                # Calculate syllables
+                total_syllables = sum(self._count_syllables(word) for word in fragment_words)
+                
                 chunk = {
                     'chunk_id': f'fragment_{line_idx}_{frag_idx}',
+                    'title': title,
                     'text': fragment['text'],
-                    'parent_line_idx': line_idx,
+                    'line': line_idx,
+                    'act': current_act,
+                    'scene': current_scene,
+                    'word_index': f"{fragment_start},{fragment_start + len(fragment_words) - 1}",
+                    'syllables': total_syllables,
+                    'POS': fragment['pos_tags'],
+                    'mood': 'neutral',
+                    'speaker': current_speaker,
                     'fragment_position': frag_idx,
-                    'pos_tags': fragment['pos_tags'],
-                    'total_fragments_in_line': len(line_fragments),
-                    'char_length': len(fragment['text']),
-                    'word_count': len(fragment['text'].split())
+                    'total_fragments_in_line': len(line_fragments)
                 }
                 chunks.append(chunk)
                 self.logger.debug(
@@ -124,20 +168,38 @@ class FragmentChunker(ChunkBase):
             
             # Add metadata and collect all fragments
             for frag_idx, fragment in enumerate(phrase_fragments):
+                # Calculate word indices for this fragment within the phrase
+                phrase_words = word_tokenize(phrase_text)
+                fragment_words = word_tokenize(fragment['text'])
+                fragment_start = -1
+                
+                # Find where this fragment starts in the full phrase
+                for i in range(len(phrase_words) - len(fragment_words) + 1):
+                    if phrase_words[i:i+len(fragment_words)] == fragment_words:
+                        fragment_start = i
+                        break
+                
+                if fragment_start == -1:
+                    self.logger.warning(f"Could not find fragment position in phrase: {fragment['text']}")
+                    continue
+                
+                # Calculate syllables
+                total_syllables = sum(self._count_syllables(word) for word in fragment_words)
+                
                 chunk = {
                     'chunk_id': f'fragment_{phrase_id}_{frag_idx}',
+                    'title': phrase_chunk.get('title', 'Unknown'),
                     'text': fragment['text'],
-                    'parent_phrase_id': phrase_id,
-                    'parent_line_id': parent_line_id,
-                    'fragment_position': frag_idx,
-                    'pos_tags': fragment['pos_tags'],
-                    'total_fragments_in_phrase': len(phrase_fragments),
-                    'char_length': len(fragment['text']),
-                    'word_count': len(fragment['text'].split()),
-                    # Copy metadata from parent phrase
+                    'line': phrase_chunk.get('line'),
                     'act': phrase_chunk.get('act'),
                     'scene': phrase_chunk.get('scene'),
+                    'word_index': f"{fragment_start},{fragment_start + len(fragment_words) - 1}",
+                    'syllables': total_syllables,
+                    'POS': fragment['pos_tags'],
+                    'mood': phrase_chunk.get('mood', 'neutral'),
                     'speaker': phrase_chunk.get('speaker'),
+                    'fragment_position': frag_idx,
+                    'total_fragments_in_phrase': len(phrase_fragments)
                 }
                 chunks.append(chunk)
                 self.logger.debug(
