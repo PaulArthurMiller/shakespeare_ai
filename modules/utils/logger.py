@@ -5,7 +5,7 @@ from datetime import datetime
 class CustomLogger:
     """A custom logging class that provides standardized logging functionality."""
     
-    def __init__(self, name, log_level='INFO', log_file=None):
+    def __init__(self, name, log_level='DEBUG', log_file=None):
         """
         Initialize the CustomLogger.
         
@@ -15,7 +15,7 @@ class CustomLogger:
             log_file (str, optional): Path to the log file. If None, logs to console only.
         """
         self.logger = logging.getLogger(name)
-        self.logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+        self.logger.setLevel(getattr(logging, log_level.upper(), logging.DEBUG))
         
         # Create formatter
         formatter = logging.Formatter(

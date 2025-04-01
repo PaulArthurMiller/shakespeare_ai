@@ -1,0 +1,513 @@
+{
+  "I": {
+    "act": "I",
+    "scenes": [
+      {
+        "scene": 1,
+        "setting": "A dimly lit chamber in Mortimer's castle, adorned with ancient texts and technological artifacts.",
+        "characters": [
+          "Mortimer",
+          "Bashir",
+          "Djinn"
+        ],
+        "voice_primers": {
+          "Mortimer": "Ambitious yet morally blind, speaks with authority and obsession.",
+          "Bashir": "Intellectually driven, curious yet detached, speaks with logical precision.",
+          "Djinn": "Cryptic and neutral, speaks like a divine oracle or machine."
+        },
+        "dramatic_functions": [
+          "#EXPOSITION",
+          "#DIALOGUE_TURN",
+          "#MYSTICAL_ENTRANCE"
+        ],
+        "beats": [
+          "Mortimer and Bashir discuss the implications of the Djinn's knowledge.",
+          "Bashir expresses his fascination with the Djinn, hinting at moral concerns.",
+          "Mortimer dismisses ethical considerations, focused solely on power and control.",
+          "The Djinn appears, offering knowledge at an undefined cost.",
+          "Mortimer eagerly accepts the Djinn's offer, ignoring Bashir's warnings."
+        ],
+        "onstage_events": [
+          "Mortimer and Bashir enter the chamber, examining texts.",
+          "The Djinn materializes in a corner of the room.",
+          "Mortimer approaches the Djinn, signaling his acceptance."
+        ]
+      },
+      {
+        "scene": 2,
+        "setting": "A grand hall in the castle, filled with courtiers and advisors.",
+        "characters": [
+          "Mortimer",
+          "Edgar",
+          "Alastor"
+        ],
+        "voice_primers": {
+          "Mortimer": "Commands respect, speaks with an air of confidence and ambition.",
+          "Edgar": "Loyal yet morally conflicted, speaks with caution and sincerity.",
+          "Alastor": "Ambitious and ruthless, speaks with opportunistic charm."
+        },
+        "dramatic_functions": [
+          "#DIALOGUE_TURN",
+          "#CONFLICT",
+          "#FORESHADOWING"
+        ],
+        "beats": [
+          "Mortimer announces a bold new plan, inspired by the Djinn's knowledge.",
+          "Edgar expresses concern over the ethical implications.",
+          "Alastor supports Mortimer, seeing an opportunity for power.",
+          "Tension rises as Edgar's loyalty is tested."
+        ],
+        "onstage_events": [
+          "Mortimer stands at the head of the hall, addressing the assembly.",
+          "Edgar steps forward, voicing his concerns.",
+          "Alastor moves to Mortimer's side, showing support."
+        ]
+      },
+      {
+        "scene": 3,
+        "setting": "A secluded garden within the castle walls, under a moonlit sky.",
+        "characters": [
+          "Leila",
+          "Edgar"
+        ],
+        "voice_primers": {
+          "Leila": "Speaks with moral clarity and determination, a voice of ethical reason.",
+          "Edgar": "Conflicted, wavering between loyalty and morality, speaks with emotional depth."
+        },
+        "dramatic_functions": [
+          "#DIALOGUE_TURN",
+          "#SOLILOQUY",
+          "#MORAL_CONFLICT"
+        ],
+        "beats": [
+          "Leila confronts Edgar about his father's plans, urging him to take a stand.",
+          "Edgar reveals his internal struggle, torn between loyalty and morality.",
+          "Leila passionately argues for ethical resistance, emphasizing the greater good.",
+          "Edgar promises to reconsider, swayed by Leila's conviction."
+        ],
+        "onstage_events": [
+          "Leila enters the garden, finding Edgar deep in thought.",
+          "The two engage in a heartfelt conversation, moving closer as emotions rise.",
+          "Leila exits, leaving Edgar alone to ponder his choices."
+        ]
+      }
+    ]
+  },
+  "II": {
+    "act": "II",
+    "scenes": [
+      {
+        "scene": 1,
+        "setting": "A dimly lit chamber in Mortimer's palace, filled with ancient books and strange devices. The ambiance is tense and foreboding.",
+        "characters": [
+          "Mortimer",
+          "Bashir",
+          "Djinn"
+        ],
+        "voice_primers": {
+          "Mortimer": "Ambitious and authoritative, with an undercurrent of growing paranoia.",
+          "Bashir": "Intellectually curious, speaking in a detached and rational manner.",
+          "Djinn": "Cryptic and neutral, with an oracular and machine-like precision."
+        },
+        "dramatic_functions": [
+          "#DIALOGUE_TURN",
+          "#MOMENT_OF_DREAD",
+          "#REVELATION"
+        ],
+        "beats": [
+          "Mortimer demands answers from the Djinn, seeking knowledge about the future.",
+          "Bashir warns Mortimer about the dangers of meddling with the unknown.",
+          "The Djinn cryptically reveals the cost of Mortimer's quest for control.",
+          "Mortimer dismisses Bashir's concerns, obsessed with the power offered.",
+          "Bashir, troubled, contemplates the ethical implications of their actions."
+        ],
+        "onstage_events": [
+          "Mortimer and Bashir enter the chamber.",
+          "The Djinn silently appears, almost as if conjured.",
+          "Mortimer aggressively interrogates the Djinn.",
+          "Bashir tries to intervene, but is ignored by Mortimer.",
+          "The Djinn vanishes, leaving Bashir and Mortimer alone."
+        ]
+      },
+      {
+        "scene": 2,
+        "setting": "A courtyard within the palace, under a moonlit sky. The air is heavy with an impending sense of doom.",
+        "characters": [
+          "Edgar",
+          "Leila"
+        ],
+        "voice_primers": {
+          "Edgar": "Torn between loyalty and morality, with a voice tinged with doubt.",
+          "Leila": "Resolute and passionately ethical, speaking with clarity and conviction."
+        },
+        "dramatic_functions": [
+          "#CONFLICT",
+          "#MORAL_DEBATE",
+          "#FORESHADOWING"
+        ],
+        "beats": [
+          "Edgar confesses his fears about Mortimer's growing tyranny to Leila.",
+          "Leila urges Edgar to stand up against Mortimer, highlighting the moral imperative.",
+          "A heated debate ensues about loyalty versus moral responsibility.",
+          "Leila predicts dire consequences if Mortimer's actions go unchecked.",
+          "Edgar, conflicted, agrees to consider Leila's counsel."
+        ],
+        "onstage_events": [
+          "Edgar paces nervously as Leila approaches him.",
+          "Leila confronts Edgar, pleading for action.",
+          "Edgar, hesitant, struggles with his internal conflict.",
+          "Leila exits, leaving Edgar in deep contemplation."
+        ]
+      },
+      {
+        "scene": 3,
+        "setting": "A shadowy, secluded area of the palace grounds. The atmosphere is tense, with an undercurrent of betrayal.",
+        "characters": [
+          "Alastor",
+          "Bashir"
+        ],
+        "voice_primers": {
+          "Alastor": "Calculating and opportunistic, speaking with a cunning edge.",
+          "Bashir": "Anxious and morally conflicted, with a tone of quiet desperation."
+        },
+        "dramatic_functions": [
+          "#PLOT_ADVANCEMENT",
+          "#BETRAYAL",
+          "#TENSION"
+        ],
+        "beats": [
+          "Alastor approaches Bashir with a proposition to overthrow Mortimer.",
+          "Bashir is initially resistant, fearing the moral implications.",
+          "Alastor manipulates Bashir by exploiting his fears about Mortimer's tyranny.",
+          "Bashir reluctantly agrees to aid Alastor, torn by guilt and fear."
+        ],
+        "onstage_events": [
+          "Alastor enters, lurking in the shadows.",
+          "He confronts Bashir, who is visibly shaken.",
+          "Alastor and Bashir engage in a tense exchange.",
+          "Alastor exits with a sly smile, leaving Bashir alone and conflicted."
+        ]
+      }
+    ]
+  },
+  "III": {
+    "act": "III",
+    "scenes": [
+      {
+        "scene": 1,
+        "setting": "A dimly lit chamber in Mortimer's castle. Shadows loom large, creating an oppressive atmosphere.",
+        "characters": [
+          "Mortimer",
+          "Edgar"
+        ],
+        "voice_primers": {
+          "Mortimer": "Authoritative yet increasingly unstable, Mortimer speaks with a tone that oscillates between commanding certainty and growing paranoia.",
+          "Edgar": "Conflicted and cautious, Edgar's voice carries a mix of suppressed fear and a desperate plea for reason."
+        },
+        "dramatic_functions": [
+          "#CONFRONTATION",
+          "#REVELATION"
+        ],
+        "beats": [
+          "Mortimer reveals his plans to harness forbidden knowledge to consolidate power.",
+          "Edgar questions the morality of Mortimer's actions, expressing concern for the kingdom's future.",
+          "Mortimer dismisses Edgar's concerns, accusing him of disloyalty.",
+          "Edgar warns Mortimer of the potential for catastrophic consequences, hinting at his own growing doubts."
+        ],
+        "onstage_events": [
+          "Mortimer enters the chamber, pacing restlessly.",
+          "Edgar enters cautiously, maintaining a respectful distance.",
+          "Mortimer approaches Edgar aggressively, towering over him.",
+          "Edgar retreats slightly, visibly conflicted."
+        ]
+      },
+      {
+        "scene": 2,
+        "setting": "A secluded garden within the castle grounds, under a starlit sky.",
+        "characters": [
+          "Leila",
+          "Alastor"
+        ],
+        "voice_primers": {
+          "Leila": "Steadfast and passionate, Leila's voice is imbued with a sense of moral clarity and urgency.",
+          "Alastor": "Cold and calculating, Alastor speaks with a detached, almost sardonic tone, underscoring his opportunistic nature."
+        },
+        "dramatic_functions": [
+          "#PERSUASION",
+          "#TENSION"
+        ],
+        "beats": [
+          "Leila attempts to persuade Alastor to join her in resisting Mortimer's plans.",
+          "Alastor feigns interest, probing Leila for more information.",
+          "Leila passionately argues for ethical governance, contrasting Mortimer's tyranny.",
+          "Alastor subtly reveals his own ambitions, hinting at a possible betrayal."
+        ],
+        "onstage_events": [
+          "Leila enters the garden, looking around cautiously.",
+          "Alastor emerges from the shadows, watching her intently.",
+          "Leila approaches Alastor, hopeful yet wary.",
+          "Alastor smirks knowingly, maintaining his distance."
+        ]
+      },
+      {
+        "scene": 3,
+        "setting": "A dimly lit library filled with ancient tomes and mysterious artifacts.",
+        "characters": [
+          "Bashir",
+          "Djinn"
+        ],
+        "voice_primers": {
+          "Bashir": "Curious and intense, Bashir's voice is driven by an insatiable thirst for knowledge, tempered by underlying anxiety.",
+          "Djinn": "Monotone and cryptic, the Djinn's speech is devoid of emotion, resembling an ancient, otherworldly machine."
+        },
+        "dramatic_functions": [
+          "#TEMPTATION",
+          "#PROPHECY"
+        ],
+        "beats": [
+          "Bashir seeks the Djinn's guidance on Mortimer's quest for power.",
+          "The Djinn offers cryptic warnings about the cost of such knowledge.",
+          "Bashir rationalizes his involvement, torn between ambition and ethical doubts.",
+          "The Djinn predicts a grim future should Mortimer's plans proceed unchallenged."
+        ],
+        "onstage_events": [
+          "Bashir enters the library, nervously glancing at the artifacts.",
+          "The Djinn's presence manifests as an eerie, glowing figure.",
+          "Bashir approaches the Djinn, his hands trembling slightly.",
+          "The Djinn remains motionless, its form flickering with an ethereal light."
+        ]
+      }
+    ]
+  },
+  "IV": {
+    "act": "IV",
+    "scenes": [
+      {
+        "scene": 1,
+        "setting": "A dimly lit chamber filled with books and ancient artifacts, exuding an air of forbidden knowledge.",
+        "characters": [
+          "Mortimer",
+          "Bashir"
+        ],
+        "voice_primers": {
+          "Mortimer": "Revered yet increasingly unstable, Mortimer's speech is commanding but edged with desperation and paranoia.",
+          "Bashir": "Intellectual and detached, Bashir's tone is analytical, often bordering on cold rationality."
+        },
+        "dramatic_functions": [
+          "#DIALOGUE_TURN",
+          "#CONFRONTATION"
+        ],
+        "beats": [
+          "Mortimer demands Bashir to reveal the secrets of the Djinn, pushing for knowledge at any cost.",
+          "Bashir cautions Mortimer about the dangers of the Djinn's knowledge, highlighting the ethical costs.",
+          "Mortimer dismisses Bashir's warnings, driven by his obsession for power and control.",
+          "Bashir reluctantly agrees to assist but secretly questions Mortimer's sanity.",
+          "Tension rises as Mortimer's erratic behavior foreshadows his impending downfall."
+        ],
+        "onstage_events": [
+          "Mortimer enters, pacing restlessly.",
+          "Bashir, seated at a table, rises to confront Mortimer.",
+          "Mortimer slams a book onto the table, demanding answers.",
+          "Bashir exits, leaving Mortimer alone, consumed by his thoughts."
+        ]
+      },
+      {
+        "scene": 2,
+        "setting": "A dimly lit prison cell, cold and unwelcoming.",
+        "characters": [
+          "Edgar",
+          "Leila"
+        ],
+        "voice_primers": {
+          "Edgar": "Conflicted and weary, Edgar's voice carries the weight of his internal struggle and regret.",
+          "Leila": "Steadfast and passionate, Leila's tone is one of moral certainty and resolve."
+        },
+        "dramatic_functions": [
+          "#SOLILOQUY",
+          "#DIALOGUE_TURN"
+        ],
+        "beats": [
+          "Edgar reflects on his moral failures, lamenting his inability to oppose his father.",
+          "Leila, visiting Edgar, urges him to act against Mortimer's tyranny.",
+          "Edgar expresses doubt and fear, torn between loyalty and morality.",
+          "Leila implores Edgar to stand with her, offering him a chance at redemption.",
+          "Edgar, moved by Leila's conviction, vows to take a stand, setting his fate in motion."
+        ],
+        "onstage_events": [
+          "Leila enters, bringing light into the dim cell.",
+          "Edgar, sitting in shadow, rises as he speaks with Leila.",
+          "Leila exits, leaving Edgar resolved yet troubled."
+        ]
+      },
+      {
+        "scene": 3,
+        "setting": "A grand hall filled with supporters of Mortimer, a sense of unease permeates the air.",
+        "characters": [
+          "Mortimer",
+          "Alastor",
+          "Leila"
+        ],
+        "voice_primers": {
+          "Mortimer": "Increasingly unstable, Mortimer's voice is authoritative yet tinged with desperation.",
+          "Alastor": "Cunning and opportunistic, Alastor's speech is smooth and persuasive.",
+          "Leila": "Defiant and principled, Leila's tone is clear and unwavering."
+        },
+        "dramatic_functions": [
+          "#CONFRONTATION",
+          "#DIALOGUE_TURN"
+        ],
+        "beats": [
+          "Mortimer attempts to rally his followers, asserting his control over the realm.",
+          "Leila interrupts, publicly denouncing Mortimer's unethical rule.",
+          "Alastor seizes the moment, inciting the crowd against Mortimer.",
+          "Mortimer, feeling betrayed, orders Leila's arrest, escalating the conflict.",
+          "The crowd, swayed by Alastor, begins to turn against Mortimer, foreshadowing his downfall."
+        ],
+        "onstage_events": [
+          "Mortimer stands at the center, addressing his followers.",
+          "Leila enters, interrupting Mortimer's speech.",
+          "Alastor emerges from the crowd, rallying them with his words.",
+          "Guards seize Leila as Mortimer commands her arrest.",
+          "The crowd begins to murmur and shift allegiance."
+        ]
+      },
+      {
+        "scene": 4,
+        "setting": "A desolate rooftop under a stormy sky, the city below engulfed in chaos.",
+        "characters": [
+          "Mortimer",
+          "Djinn"
+        ],
+        "voice_primers": {
+          "Mortimer": "A broken man, Mortimer's voice is filled with regret and realization.",
+          "Djinn": "Impassive and cryptic, the Djinn's speech is precise and devoid of emotion."
+        },
+        "dramatic_functions": [
+          "#SOLILOQUY",
+          "#REVELATION"
+        ],
+        "beats": [
+          "Mortimer, alone, reflects on his life's choices, realizing the magnitude of his errors.",
+          "He calls upon the Djinn, seeking a way to undo his past actions.",
+          "The Djinn appears, offering Mortimer a final, cryptic revelation about the nature of power and knowledge.",
+          "Mortimer finally understands the irreversible consequences of his quest for control.",
+          "In a moment of tragic clarity, Mortimer takes his own life, ending his tragic arc."
+        ],
+        "onstage_events": [
+          "Mortimer stands on the edge of the rooftop, gazing at the city.",
+          "The Djinn materializes beside Mortimer, imparting its final message.",
+          "Mortimer, fully realizing his mistakes, jumps from the rooftop."
+        ]
+      }
+    ]
+  },
+  "V": {
+    "act": "V",
+    "scenes": [
+      {
+        "scene": 1,
+        "setting": "A dimly lit chamber in Mortimer's castle, filled with books and strange devices. The atmosphere is tense and foreboding.",
+        "characters": [
+          "Mortimer",
+          "Djinn"
+        ],
+        "voice_primers": {
+          "Mortimer": "A once ambitious ruler now teetering on the edge of madness. His speech is increasingly frantic and desperate, tinged with regret and self-loathing.",
+          "Djinn": "An enigmatic and emotionless force. His speech is cryptic, precise, and devoid of any personal inflection, like a divine oracle."
+        },
+        "dramatic_functions": [
+          "#DIALOGUE_TURN",
+          "#REVELATION"
+        ],
+        "beats": [
+          "Mortimer, in a frantic state, demands answers from the Djinn about his impending downfall.",
+          "The Djinn cryptically offers knowledge that further torments Mortimer's conscience.",
+          "Mortimer's desperation grows as he realizes the consequences of his past actions are irreversible.",
+          "The scene ends with Mortimer making a desperate plea for redemption."
+        ],
+        "onstage_events": [
+          "Mortimer enters the chamber, visibly distressed.",
+          "The Djinn appears, seemingly from nowhere, to address Mortimer's questions.",
+          "Mortimer collapses to his knees, clutching a book of forbidden knowledge."
+        ]
+      },
+      {
+        "scene": 2,
+        "setting": "The dungeons of the castle, dimly lit and echoing with distant sounds of conflict.",
+        "characters": [
+          "Edgar",
+          "Leila"
+        ],
+        "voice_primers": {
+          "Edgar": "Torn between loyalty to his father and his own moral compass, his voice is filled with anguish and regret.",
+          "Leila": "A beacon of moral integrity, her voice is firm and resolute, even in the face of death."
+        },
+        "dramatic_functions": [
+          "#CONFRONTATION",
+          "#RESOLUTION"
+        ],
+        "beats": [
+          "Imprisoned, Edgar confesses his moral conflict and regrets to Leila.",
+          "Leila encourages Edgar to hold onto his integrity despite their dire situation.",
+          "A moment of solidarity as Edgar and Leila face their fate with dignity.",
+          "The scene ends with guards arriving to escort them to their execution."
+        ],
+        "onstage_events": [
+          "Edgar and Leila are seen shackled in adjacent cells.",
+          "Guards appear at the door to take Edgar and Leila away."
+        ]
+      },
+      {
+        "scene": 3,
+        "setting": "The grand hall of the castle, now a scene of chaos with signs of struggle and betrayal.",
+        "characters": [
+          "Alastor",
+          "Bashir"
+        ],
+        "voice_primers": {
+          "Alastor": "A ruthless opportunist, his voice is commanding and filled with a sense of self-righteousness.",
+          "Bashir": "Intellectually curious but morally conflicted, his voice is analytical, seeking justification."
+        },
+        "dramatic_functions": [
+          "#BETRAYAL",
+          "#DOWNFALL"
+        ],
+        "beats": [
+          "Alastor confronts Bashir, accusing him of betrayal and weakness.",
+          "Bashir tries to rationalize his actions, but Alastor remains unmoved.",
+          "Alastor seizes control through force, illustrating his lack of ethical boundaries.",
+          "Bashir is murdered as a demonstration of Alastor's merciless ambition."
+        ],
+        "onstage_events": [
+          "Alastor storms into the hall, flanked by armed followers.",
+          "A physical struggle ensues, resulting in Bashir's death."
+        ]
+      },
+      {
+        "scene": 4,
+        "setting": "The battlements of the castle, overlooking a stormy horizon. The air is heavy with finality.",
+        "characters": [
+          "Mortimer"
+        ],
+        "voice_primers": {
+          "Mortimer": "In his final moments, Mortimer's voice is filled with despair and a tragic acceptance of his fate."
+        },
+        "dramatic_functions": [
+          "#SOLILOQUY",
+          "#TRAGIC_RECOGNITION"
+        ],
+        "beats": [
+          "Alone, Mortimer reflects on his life and the choices that led to his ruin.",
+          "He acknowledges his moral blindness and the irreversible nature of his actions.",
+          "In a moment of tragic clarity, Mortimer decides to take his own life.",
+          "The scene concludes with Mortimer's final act, symbolizing his ultimate downfall."
+        ],
+        "onstage_events": [
+          "Mortimer stands on the edge of the battlements, overlooking the storm.",
+          "He delivers a soliloquy, grappling with his inner turmoil.",
+          "Mortimer steps forward, disappearing from view."
+        ]
+      }
+    ]
+  }
+}

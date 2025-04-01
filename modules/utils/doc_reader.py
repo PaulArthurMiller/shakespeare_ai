@@ -1,123 +1,88 @@
 import re
-from typing import List, Dict, Optional
+from typing import List, Optional
 from pathlib import Path
-from dataclasses import dataclass
-from modules.utils.logger import CustomLogger
+from logger import CustomLogger
 
-@dataclass
-class LineData:
-    work: str
-    act: Optional[int]
-    scene: Optional[int]
-    scene_line_number: int
-    global_line_number: int
-    speaker: Optional[str]
-    text: str
-    stage_direction: bool
-    spoken: bool
-    word_index_range: List[int]
 
 class DocumentReader:
     def __init__(self, logger: Optional[CustomLogger] = None):
         self.logger = logger or CustomLogger("DocumentReader")
-        self.play_title = None
-        self.act = None
-        self.scene = None
-        self.scene_line_number = 0
-        self.global_line_number = 0
-        self.speaker_pattern = re.compile(r'^(\s{2,}|\t*)([A-Z][A-Za-z0-9\.\-]+)[:\.]\s{2}(.*)$')
+        self.cleaned_lines: List[str] = []
 
-    def read_file(self, file_path: str) -> List[LineData]:
+    def read_file(self, file_path: str) -> List[str]:
         path = Path(file_path)
         if not path.exists():
             self.logger.error(f"File not found: {file_path}")
             raise FileNotFoundError(f"No such file: {file_path}")
 
         with open(path, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
+            raw_lines = f.readlines()
+        self.logger.info(f"Read {len(raw_lines)} lines from {file_path}")
 
-        parsed_lines = []
-        current_speaker = None
+        self.cleaned_lines = self._clean_lines(raw_lines)
+        self.logger.info(f"Cleaned down to {len(self.cleaned_lines)} lines")
+        return self.cleaned_lines
 
-        for i, raw_line in enumerate(lines):
-            line = raw_line.rstrip('\n')
+    def _clean_lines(self, lines: List[str]) -> List[str]:
+        cleaned_lines = []
+        in_copyright_block = False
+        stage_keywords = {"exit", "exeunt", "enter", "re-enter"}
 
-            # Skip copyright, dramatis personae, and blank lines
-            if not line.strip() or line.strip().startswith("<<"):
+        for i, line in enumerate(lines):
+            original_line = line
+            line = line.rstrip('\n')
+
+            # Detect and remove copyright blocks
+            if "<<" in line:
+                in_copyright_block = True
+                self.logger.debug(f"Line {i}: Removed copyright block start -> {original_line.strip()}")
+                continue
+            if ">>" in line:
+                in_copyright_block = False
+                self.logger.debug(f"Line {i}: Removed copyright block end -> {original_line.strip()}")
+                continue
+            if in_copyright_block:
+                self.logger.debug(f"Line {i}: Removed line inside copyright block -> {original_line.strip()}")
                 continue
 
-            # Detect and set play title based on pattern: year followed by title and "by William Shakespeare"
-            if self.play_title is None:
-                if re.match(r'^\d{4}\s*$', line.strip()):
-                    # Look ahead to find the title
-                    for j in range(i+1, min(i+10, len(lines))):
-                        next_line = lines[j].strip()
-                        if next_line and re.search(r'by\s+William\s+Shakespeare', lines[j+1], re.IGNORECASE):
-                            self.play_title = next_line.title()
-                            self.logger.info(f"Detected play title: {self.play_title}")
-                            break
+            # Skip fully blank lines
+            if not line.strip():
+                self.logger.debug(f"Line {i}: Removed blank line")
                 continue
 
-            # Detect Act
-            act_match = re.match(r'^ACT\s+([IVX]+)', line.strip(), re.IGNORECASE)
-            if act_match:
-                self.act = self._roman_to_int(act_match.group(1))
-                self.scene = None
-                self.scene_line_number = 0
-                continue
+            # Normalize whitespace and lowercase for detection
+            normalized_line = line.strip().lower()
 
-            # Detect Scene
-            scene_match = re.match(r'^SCENE\s+([IVX]+)', line.strip(), re.IGNORECASE)
-            if scene_match:
-                self.scene = self._roman_to_int(scene_match.group(1))
-                self.scene_line_number = 0
-                continue
-
-            # Detect stage directions or entrances
-            if line.strip().startswith("[") or re.match(r'^(Enter|Exit|Exeunt)', line.strip(), re.IGNORECASE):
-                continue
-
-            # Detect speaker line
-            speaker_match = self.speaker_pattern.match(line)
-            if speaker_match:
-                current_speaker = speaker_match.group(2).upper()
-                speech = speaker_match.group(3).strip()
-                parsed_lines.append(self._create_line(current_speaker, speech))
-                continue
-
-            # Skip continuation lines
-            if line.startswith("    "):
-                continue
-
-        return parsed_lines
-
-    def _create_line(self, speaker: str, text: str) -> LineData:
-        self.global_line_number += 1
-        self.scene_line_number += 1
-        words = text.split()
-        word_index_range = [0, len(words)-1] if words else [0, 0]
-        return LineData(
-            work=self.play_title or "Unknown",
-            act=self.act,
-            scene=self.scene,
-            scene_line_number=self.scene_line_number,
-            global_line_number=self.global_line_number,
-            speaker=speaker,
-            text=text,
-            stage_direction=False,
-            spoken=True,
-            word_index_range=word_index_range
-        )
-
-    def _roman_to_int(self, roman: str) -> int:
-        roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100}
-        result = 0
-        prev = 0
-        for char in reversed(roman.upper()):
-            value = roman_numerals.get(char, 0)
-            if value < prev:
-                result -= value
+            # Check for stage directions based on keyword and placement
+            for keyword in stage_keywords:
+                if keyword in normalized_line:
+                    index = normalized_line.find(keyword)
+                    pre_keyword = normalized_line[:index]
+                    if pre_keyword.strip() == "":
+                        self.logger.debug(f"Line {i}: Removed stage direction (keyword: {keyword}) -> {original_line.strip()}")
+                        break  # Do not append
             else:
-                result += value
-            prev = value
-        return result
+                cleaned_lines.append(line.strip())
+
+        return cleaned_lines
+
+
+# Example usage block
+if __name__ == "__main__":
+    from pathlib import Path
+
+    input_path = Path("data/raw_texts/working_complete_shakespeare.txt")
+    output_path = Path("data/raw_texts/working_cleaned.txt")
+
+    reader = DocumentReader()
+    with open(input_path, "r", encoding="utf-8") as f:
+        raw_lines = f.readlines()
+
+    cleaned = reader._clean_lines(raw_lines)
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        for line in cleaned:
+            f.write(line + "\n")
+
+    print(f"✅ Cleaned file saved to: {output_path}")
+
