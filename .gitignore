@@ -58,12 +58,12 @@ Thumbs.db
 *.orig
 
 # Project Data Directories
-# data/raw_texts/*
-# data/processed_chunks/*
-# data/processed_texts/*
-# data/line_corpus/*
-# data/modern_play/*
-# data/prompts/*
+data/raw_texts/*
+data/processed_chunks/*
+data/processed_texts/*
+data/line_corpus/*
+data/modern_play/*
+data/prompts/*
 embeddings/chromadb_vectors/**/*.*
 
 # Temporary and Generated Files

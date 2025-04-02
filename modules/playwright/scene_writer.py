@@ -22,7 +22,7 @@ class SceneWriter:
         self.temperature = self.config.get("temperature", 0.7)
 
         self.expanded_story_path = expanded_story_path
-        self.output_dir = "data/modern_play/generated_scenes"
+        self.output_dir = "data/modern_play/generated_scenes_v2"
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.openai_client = None
@@ -74,7 +74,7 @@ class SceneWriter:
         voice_primers = "\n".join([f"{char}: {desc}" for char, desc in scene_data.get("voice_primers", {}).items()])
 
         return f"""
-You are writing dramatic dialog for a play inspired by Shakespeare’s style, but using modern English.
+You are writing dramatic dialog for a play inspired by Shakespeare's structure, but using **modern American English**.
 
 The setting is: {setting}
 
@@ -89,11 +89,28 @@ Voice guidelines:
 {voice_primers}
 
 Guidelines:
-- Write dialog in the style of Shakespeare (use varied rhythm, vivid language, poetic phrasing)
+- Write dialog in the style of Shakespeare (use poetic structure, rhythm, and dramatic arc), but in **modern American English**
+- Avoid archaic or Elizabethan vocabulary
 - Favor poetic form and rhymed couplets at emotional or dramatic high points
 - Break long speeches into multiple lines, as Shakespeare would
 - Include simple stage directions like [Mortimer enters], [Edgar aside], etc.
-- Return only the formatted play script.
+- Each scene should include **at least 120 lines of spoken text**, not counting character names, stage directions, or blank lines
+- Return only the formatted play script
+
+Here is an example of the output format:
+
+ACT I
+
+SCENE 1
+
+[Enter CHARACTER NAME with attendants.]
+
+CHARACTER NAME
+I speak today about the subject,
+Not just any subject,
+But the one upon which I am speaking.
+
+[Exit CHARACTER NAME]
 """
 
     def _call_model(self, prompt: str) -> str:
@@ -134,7 +151,7 @@ Guidelines:
                     dialog = self._call_model(prompt)
                     filename = f"act_{act.lower()}_scene_{scene_num}"
                     with open(os.path.join(self.output_dir, f"{filename}.md"), "w", encoding="utf-8") as f:
-                        f.write(dialog)
+                        f.write(f"ACT {act}\n\nSCENE {scene_num}\n\n{dialog}")
                     with open(os.path.join(self.output_dir, f"{filename}.json"), "w", encoding="utf-8") as f:
                         json.dump({"act": act, "scene": scene_num, "script": dialog}, f, indent=2)
                 except Exception as e:
