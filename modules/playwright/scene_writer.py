@@ -1,0 +1,141 @@
+import os
+import json
+from typing import List, Dict, Any, Optional
+from modules.utils.logger import CustomLogger
+from openai import OpenAI
+from anthropic import Anthropic
+import importlib.util
+
+
+class SceneWriter:
+    def __init__(
+        self,
+        config_path: str = "modules/playwright/config.py",
+        expanded_story_path: str = "data/modern_play/expanded_story.json"
+    ):
+        self.logger = CustomLogger("SceneWriter")
+        self.logger.info("Initializing SceneWriter")
+
+        self.config = self._load_config(config_path)
+        self.model_provider = self.config.get("model_provider", "openai")
+        self.model_name = self.config.get("model_name", "gpt-4o")
+        self.temperature = self.config.get("temperature", 0.7)
+
+        self.expanded_story_path = expanded_story_path
+        self.output_dir = "data/modern_play/generated_scenes"
+        os.makedirs(self.output_dir, exist_ok=True)
+
+        self.openai_client = None
+        self.anthropic_client = None
+        self._init_model_client()
+
+        self.story = self._load_json(self.expanded_story_path)
+
+    def _load_config(self, path: str) -> Dict[str, Any]:
+        try:
+            spec = importlib.util.spec_from_file_location("config", path)
+            if spec is None or spec.loader is None:
+                raise ImportError("Could not load config")
+
+            config_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(config_module)  # type: ignore[attr-defined]
+
+            self.logger.info("Loaded configuration from config.py")
+            return {
+                key: getattr(config_module, key)
+                for key in dir(config_module)
+                if not key.startswith("__")
+            }
+        except Exception as e:
+            self.logger.error(f"Failed to load config: {e}")
+            return {}
+
+    def _init_model_client(self):
+        if self.model_provider == "anthropic":
+            self.logger.info("Using Anthropic client")
+            self.anthropic_client = Anthropic()
+        else:
+            self.logger.info("Using OpenAI client")
+            self.openai_client = OpenAI()
+
+    def _load_json(self, path: str) -> Dict[str, Any]:
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            self.logger.error(f"Error loading JSON from {path}: {e}")
+            return {}
+
+    def _build_prompt(self, act: str, scene_data: Dict[str, Any]) -> str:
+        setting = scene_data.get("setting", "")
+        characters = ", ".join(scene_data.get("characters", []))
+        beats = "\n- ".join(scene_data.get("beats", []))
+        functions = ", ".join(scene_data.get("dramatic_functions", []))
+        voice_primers = "\n".join([f"{char}: {desc}" for char, desc in scene_data.get("voice_primers", {}).items()])
+
+        return f"""
+You are writing dramatic dialog for a play inspired by Shakespeare’s style, but using modern English.
+
+The setting is: {setting}
+
+The characters in this scene are: {characters}
+
+Use the following dramatic beats to guide the progression of dialog:
+- {beats}
+
+Dramatic tones and functions: {functions}
+
+Voice guidelines:
+{voice_primers}
+
+Guidelines:
+- Write dialog in the style of Shakespeare (use varied rhythm, vivid language, poetic phrasing)
+- Favor poetic form and rhymed couplets at emotional or dramatic high points
+- Break long speeches into multiple lines, as Shakespeare would
+- Include simple stage directions like [Mortimer enters], [Edgar aside], etc.
+- Return only the formatted play script.
+"""
+
+    def _call_model(self, prompt: str) -> str:
+        if self.model_provider == "anthropic" and self.anthropic_client:
+            response = self.anthropic_client.messages.create(
+                model=self.model_name,
+                max_tokens=2048,
+                temperature=self.temperature,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            for block in response.content:
+                if isinstance(block, dict) and 'text' in block:
+                    return block['text'].strip()
+            return str(response)
+
+        elif self.openai_client:
+            response = self.openai_client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": "You are a playwright assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.temperature
+            )
+            content = response.choices[0].message.content
+            return content.strip() if content else ""
+
+        else:
+            raise RuntimeError("No valid model client initialized")
+
+    def generate_scenes(self):
+        for act, act_data in self.story.items():
+            for scene in act_data.get("scenes", []):
+                scene_num = scene.get("scene", "X")
+                self.logger.info(f"Generating Act {act}, Scene {scene_num}")
+                prompt = self._build_prompt(act, scene)
+                try:
+                    dialog = self._call_model(prompt)
+                    filename = f"act_{act.lower()}_scene_{scene_num}"
+                    with open(os.path.join(self.output_dir, f"{filename}.md"), "w", encoding="utf-8") as f:
+                        f.write(dialog)
+                    with open(os.path.join(self.output_dir, f"{filename}.json"), "w", encoding="utf-8") as f:
+                        json.dump({"act": act, "scene": scene_num, "script": dialog}, f, indent=2)
+                except Exception as e:
+                    self.logger.error(f"Failed to generate scene {act}.{scene_num}: {e}")

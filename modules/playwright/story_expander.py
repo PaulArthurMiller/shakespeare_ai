@@ -5,6 +5,7 @@ from modules.utils.logger import CustomLogger
 from openai import OpenAI
 from anthropic import Anthropic
 import importlib.util
+import re
 
 
 class StoryExpander:
@@ -69,31 +70,37 @@ class StoryExpander:
             self.logger.info("Using OpenAI client")
             self.openai_client = OpenAI()
 
-    
-
-    def _build_prompt(self, act: str, overview: str) -> str:
+    def _build_prompt(self, act: str, overview: str, prior_beats: Optional[List[str]] = None) -> str:
         voice_descriptions = "\n".join(
             [f"{char}: {desc}" for char, desc in self.character_voices.items()]
         )
 
+        context_block = ""
+        if prior_beats:
+            joined_beats = "\n- ".join(prior_beats[-15:])
+            context_block = f"\n\nPreviously on stage:\n- {joined_beats}"
+
         prompt = f"""
-You are a story developer working on a five-act play, written in modern English but structured dramatically like Shakespeare's *Macbeth*. The tone should reflect psychological tension, moral complexity, and escalating tragedy.
+You are a story developer working on a five-act play, written in modern English but structured dramatically like Shakespeare's *Macbeth*.
 
 Act {act}: {overview}
+
+{context_block}
 
 Characters and their voice styles:
 {voice_descriptions}
 
-Use the following guidance when expanding this act:
-- Develop this act into **3–6 scenes**, balancing public confrontations, private introspections, and thematic pivots.
-- Include **soliloquies** for characters facing moral dilemmas or emotional breakdowns.
-- You may add **minor characters** for comic relief, exposition, or to enrich dramatic contrast—Shakespeare often does this.
-- Keep character arcs consistent: if a character dies or exits irrevocably, do not return them in later acts.
-- Consider callbacks to earlier scenes, symbols, or omens.
-- Use Shakespearean devices such as **foreshadowing**, **reversals of fortune**, **visions**, **ghosts or spirits**, **irony**, **parallelism**, and **tragic recognition (anagnorisis)**.
+Develop this act into **a random number of scenes between 3 and 6**. For each scene, include:
+- A short description of the setting
+- Characters involved
+- Dramatic beat summaries (3–5 bullet points)
+- Dramatic function tags (e.g., #DIALOGUE_TURN, #SOLILOQUY)
+- Onstage events (entrances, exits, key physical actions)
+- Voice primers for each character in the scene
 
-Structure your output like this (in JSON):
+You may invent minor characters where needed to enrich the scene.
 
+Output JSON format:
 {{
   "act": "{act}",
   "scenes": [
@@ -102,18 +109,16 @@ Structure your output like this (in JSON):
       "setting": "...",
       "characters": ["..."],
       "voice_primers": {{"Character": "Description"}},
-      "dramatic_functions": ["#DIALOGUE_TURN", "#SOLILOQUY", "#FORESHADOWING", etc.],
+      "dramatic_functions": ["#..."],
       "beats": ["..."],
-      "onstage_events": ["entrances", "exits", "key actions", etc.]
-    }},
-    ...
+      "onstage_events": ["..."]
+    }}
   ]
 }}
 """
         return prompt.strip()
 
     def _clean_json_response(self, response: str) -> str:
-        import re
         cleaned = re.sub(r"^```(?:json)?\n?|\n?```$", "", response.strip(), flags=re.MULTILINE)
         return cleaned.strip()
 
@@ -122,10 +127,15 @@ Structure your output like this (in JSON):
         for act, overview in self.act_overviews.items():
             try:
                 self.logger.info(f"Expanding Act {act}")
-                prompt = self._build_prompt(act, overview)
+                prior_beats = []
+                for prev_act in sorted(all_expanded.keys()):
+                    scenes = all_expanded[prev_act].get("scenes", [])
+                    for scene in scenes:
+                        prior_beats.extend(scene.get("beats", []))
+                prompt = self._build_prompt(act, overview, prior_beats)
                 response = self._call_model(prompt)
                 cleaned_response = self._clean_json_response(response)
-                self.logger.debug(f"Cleaned response for Act {act}:{cleaned_response}")
+                self.logger.debug(f"Cleaned response for Act {act}:\n{cleaned_response}")
                 parsed = json.loads(cleaned_response)
                 all_expanded[act] = parsed
             except Exception as e:

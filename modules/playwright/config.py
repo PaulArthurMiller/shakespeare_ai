@@ -1,4 +1,5 @@
 # Configuration file for story generation and model settings
+import random
 
 # Choose 'openai' or 'anthropic'
 model_provider = "openai"
@@ -9,5 +10,5 @@ model_name = "gpt-4o"
 # Controls creativity of the model. Range: 0.0 (deterministic) to 1.0 (very creative)
 temperature = 0.7
 
-# Optional: Set a random seed for reproducibility
-random_seed = 42
+# Optional: Set a random seed for reproducibility - comment out the 'random' call and choose an integer for consistency.
+random_seed = random.randint(0, 999999)
