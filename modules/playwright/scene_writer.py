@@ -89,19 +89,17 @@ Voice guidelines:
 {voice_primers}
 
 Guidelines:
-- Write dialog in the style of Shakespeare (use poetic structure, rhythm, and dramatic arc), but in **modern American English**
+- Write dialog in the style of Shakespeare (use poetic structure, rhythm, and dramatic arc), such as in MacBeth, but in **modern American English**
 - Avoid archaic or Elizabethan vocabulary
-- Favor poetic form and rhymed couplets at emotional or dramatic high points
+- Aim for a natural mix of shorter and longer speeches, including back-and-forth exchanges and impassioned monologues
+- Use **iambic pentameter and rhymed couplets sparingly**, and only for dramatic emphasis on important beats
 - Break long speeches into multiple lines, as Shakespeare would
 - Include simple stage directions like [Mortimer enters], [Edgar aside], etc.
-- Each scene should include **at least 120 lines of spoken text**, not counting character names, stage directions, or blank lines
+- The scene should contain **between 1,000 and 1,500 words**, excluding character names and stage directions
 - Return only the formatted play script
 
+
 Here is an example of the output format:
-
-ACT I
-
-SCENE 1
 
 [Enter CHARACTER NAME with attendants.]
 
