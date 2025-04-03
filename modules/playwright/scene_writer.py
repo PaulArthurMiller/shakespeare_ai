@@ -22,7 +22,7 @@ class SceneWriter:
         self.temperature = self.config.get("temperature", 0.7)
 
         self.expanded_story_path = expanded_story_path
-        self.output_dir = "data/modern_play/generated_scenes_v2"
+        self.output_dir = "data/modern_play/generated_scenes_claude"
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.openai_client = None
@@ -89,15 +89,15 @@ Voice guidelines:
 {voice_primers}
 
 Guidelines:
-- Write dialog in the style of Shakespeare (use poetic structure, rhythm, and dramatic arc), such as in MacBeth, but in **modern American English**
+- Write dialog in the style and structure of Shakespeare (use poetic structure, rhythm, and dramatic arc), such as in MacBeth, but in **modern American English**
 - Avoid archaic or Elizabethan vocabulary
-- Aim for a natural mix of shorter and longer speeches, including back-and-forth exchanges and impassioned monologues
-- Use **iambic pentameter and rhymed couplets sparingly**, and only for dramatic emphasis on important beats
+- Favor poetic forms such as iambic pentameter and rhymed couplets at emotional or dramatic high points; elsewhere lean toward open verse
+- Mix in shorter spoken lines and back and forth between characters where appropriate
+- Use long, extended speeches, similar to Shakespeare, where a character's explanation of motives or plans is relevant
 - Break long speeches into multiple lines, as Shakespeare would
 - Include simple stage directions like [Mortimer enters], [Edgar aside], etc.
-- The scene should contain **between 1,000 and 1,500 words**, excluding character names and stage directions
+- Each scene should contain **between 1,200 and 1,500 words of spoken text**, not counting character names or stage directions
 - Return only the formatted play script
-
 
 Here is an example of the output format:
 
@@ -115,14 +115,16 @@ But the one upon which I am speaking.
         if self.model_provider == "anthropic" and self.anthropic_client:
             response = self.anthropic_client.messages.create(
                 model=self.model_name,
-                max_tokens=2048,
+                max_tokens=3000,
                 temperature=self.temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
-            for block in response.content:
-                if isinstance(block, dict) and 'text' in block:
-                    return block['text'].strip()
-            return str(response)
+            from anthropic.types import TextBlock
+            content = "".join(
+                block.text for block in response.content
+                if isinstance(block, TextBlock)
+            )
+            return content.strip()
 
         elif self.openai_client:
             response = self.openai_client.chat.completions.create(

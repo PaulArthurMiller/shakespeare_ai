@@ -2,10 +2,10 @@
 import random
 
 # Choose 'openai' or 'anthropic'
-model_provider = "openai"
+model_provider = "anthropic"
 
 # OpenAI model name (e.g., 'gpt-4', 'gpt-4-0125-preview') or Anthropic (e.g., 'claude-3-sonnet-20240229')
-model_name = "gpt-4o"
+model_name = "claude-3-7-sonnet-20250219"
 
 # Controls creativity of the model. Range: 0.0 (deterministic) to 1.0 (very creative)
 temperature = 0.7
