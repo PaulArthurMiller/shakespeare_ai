@@ -110,7 +110,10 @@ class LineChunker(ChunkBase):
         self.logger.debug("Compiled regular expressions for text parsing")
     
     def _count_syllables(self, word: str) -> int:
-        """Simple rule-based approach for counting syllables."""
+        # Skip if it's punctuation or doesn't contain at least one letter
+        if not any(c.isalpha() for c in word):
+            return 0
+
         word = word.lower()
         if len(word) <= 3:
             return 1

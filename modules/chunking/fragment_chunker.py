@@ -41,6 +41,10 @@ class FragmentChunker(ChunkBase):
             )
 
     def _count_syllables(self, word: str) -> int:
+        # Skip if it's punctuation or doesn't contain at least one letter
+        if not any(c.isalpha() for c in word):
+            return 0
+
         word = word.lower()
         if len(word) <= 3:
             return 1
@@ -54,37 +58,49 @@ class FragmentChunker(ChunkBase):
         self.logger.debug(f"Processing {len(line_chunks)} line chunks")
         chunks = []
 
+        # Force max_words to 6
+        self.max_words = 6
+
         for line_chunk in line_chunks:
             line_text = line_chunk['text']
             line_id = line_chunk['chunk_id']
             pos_tags = line_chunk.get("POS", [])
             word_count = line_chunk.get("word_count")
+
+            # Build clean list of original word tokens from line_chunk text using spaCy
             line_doc = nlp(line_text)
-            tokens = [token for token in line_doc if not token.is_space]
+            line_tokens = [token for token in line_doc if not token.is_space and not token.is_punct]
+            token_words = [token.text for token in line_tokens]
+
             used_indices = set()
             fragment_idx = 0
 
-            for token in tokens:
+            # --- Primary Strategy: Use spaCy subtrees ---
+            for token in line_doc:
                 subtree_tokens = list(token.subtree)
-                if not subtree_tokens:
+                word_tokens = [t for t in subtree_tokens if not t.is_space and not t.is_punct]
+                if len(word_tokens) < self.min_words or len(word_tokens) > self.max_words:
                     continue
 
-                first_idx = token.i
-                last_idx = subtree_tokens[-1].i
-                length = last_idx - first_idx + 1
-
-                if length < self.min_words or length > self.max_words:
+                word_texts = [t.text for t in word_tokens]
+                try:
+                    for i in range(len(token_words) - len(word_texts) + 1):
+                        if token_words[i:i+len(word_texts)] == word_texts:
+                            word_index_start = i
+                            word_index_end = i + len(word_texts) - 1
+                            if any(idx in used_indices for idx in range(word_index_start, word_index_end + 1)):
+                                raise ValueError("Overlapping fragment indices")
+                            break
+                    else:
+                        raise ValueError("Fragment words not aligned")
+                except ValueError:
                     continue
 
-                if any(i in used_indices for i in range(first_idx, last_idx + 1)):
-                    continue
+                fragment_text = " ".join(word_texts).strip()
+                fragment_pos = [t.pos_ for t in word_tokens]
+                total_syllables = sum(self._count_syllables(t.text) for t in word_tokens if t.text.isalpha())
 
-                fragment_words = [t.text for t in subtree_tokens]
-                fragment_text = " ".join(fragment_words)
-                word_index_start = len([t for t in tokens if t.i < first_idx])
-                word_index_end = word_index_start + len(fragment_words) - 1
-                fragment_pos = pos_tags[word_index_start:word_index_end + 1]
-                total_syllables = sum(self._count_syllables(w) for w in fragment_words if w.isalpha())
+                self.logger.debug(f"[SUBTREE] Fragment {fragment_idx}: '{fragment_text}' [words: {word_index_start}-{word_index_end}]")
 
                 chunk = {
                     "chunk_id": f"fragment_{line_id}_{fragment_idx}",
@@ -94,7 +110,7 @@ class FragmentChunker(ChunkBase):
                     "line": line_chunk.get("line"),
                     "text": fragment_text,
                     "word_index": f"{word_index_start},{word_index_end}",
-                    "word_count": len(fragment_words),
+                    "word_count": len(word_tokens),
                     "POS": fragment_pos,
                     "syllables": total_syllables,
                     "mood": line_chunk.get("mood", "neutral"),
@@ -102,8 +118,49 @@ class FragmentChunker(ChunkBase):
                     "total_fragments_in_line": None
                 }
                 chunks.append(chunk)
-                used_indices.update(range(first_idx, last_idx + 1))
+                used_indices.update(range(word_index_start, word_index_end + 1))
                 fragment_idx += 1
+
+            # --- Fallback Strategy: Sliding window with no overlap ---
+            if fragment_idx == 0:
+                i = 0
+                while i <= len(line_tokens) - self.min_words:
+                    for window_size in range(self.max_words, self.min_words - 1, -1):
+                        end = i + window_size
+                        if end > len(line_tokens):
+                            continue
+
+                        if any(idx in used_indices for idx in range(i, end)):
+                            continue
+
+                        window_tokens = line_tokens[i:end]
+                        fragment_words = [t.text for t in window_tokens]
+                        fragment_text = " ".join(fragment_words).strip()
+                        fragment_pos = [t.pos_ for t in window_tokens]
+                        total_syllables = sum(self._count_syllables(t.text) for t in window_tokens if t.text.isalpha())
+
+                        self.logger.debug(f"[FALLBACK] Fragment {fragment_idx}: '{fragment_text}' [words: {i}-{end - 1}]")
+
+                        chunk = {
+                            "chunk_id": f"fragment_{line_id}_{fragment_idx}",
+                            "title": line_chunk.get("title", "Unknown"),
+                            "act": line_chunk.get("act"),
+                            "scene": line_chunk.get("scene"),
+                            "line": line_chunk.get("line"),
+                            "text": fragment_text,
+                            "word_index": f"{i},{end - 1}",
+                            "word_count": len(window_tokens),
+                            "POS": fragment_pos,
+                            "syllables": total_syllables,
+                            "mood": line_chunk.get("mood", "neutral"),
+                            "fragment_position": fragment_idx,
+                            "total_fragments_in_line": None
+                        }
+                        chunks.append(chunk)
+                        used_indices.update(range(i, end))
+                        fragment_idx += 1
+                        break  # break after first valid window at position i
+                    i += 1
 
         from collections import defaultdict
         line_to_count = defaultdict(int)

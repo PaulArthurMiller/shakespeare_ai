@@ -40,6 +40,10 @@ class PhraseChunker(ChunkBase):
         self.logger.debug("Compiled regular expressions for text parsing")
 
     def _count_syllables(self, word: str) -> int:
+        # Skip if it's punctuation or doesn't contain at least one letter
+        if not any(c.isalpha() for c in word):
+            return 0
+
         word = word.lower()
         if len(word) <= 3:
             return 1
@@ -56,53 +60,68 @@ class PhraseChunker(ChunkBase):
         for line_chunk in line_chunks:
             line_text = line_chunk['text']
             line_id = line_chunk['chunk_id']
-            word_count = line_chunk.get("word_count")
             pos_tags = line_chunk.get("POS", [])
+            word_count = line_chunk.get("word_count")
 
-            major_parts = self.phrase_pattern.split(line_text)
+            line_doc = nlp(line_text)
+            tokens = [t for t in line_doc if not t.is_space and not t.is_punct]
+            token_words = [t.text for t in tokens]
+
+            phrase_pattern = re.compile(r'([.!?;:])')
+            major_parts = phrase_pattern.split(line_text)
+
             phrases = []
             i = 0
             while i < len(major_parts):
-                if i + 1 < len(major_parts) and re.match(self.phrase_pattern, major_parts[i + 1]):
+                if i + 1 < len(major_parts) and phrase_pattern.match(major_parts[i + 1]):
                     phrases.append(major_parts[i] + major_parts[i + 1])
                     i += 2
                 else:
-                    if major_parts[i]:
+                    if major_parts[i].strip():
                         phrases.append(major_parts[i])
                     i += 1
 
             final_phrases = []
             for phrase in phrases:
                 comma_parts = phrase.split(',')
-                for i, part in enumerate(comma_parts):
-                    if i < len(comma_parts) - 1:
-                        final_phrases.append(part.strip() + ',')
-                    else:
-                        final_phrases.append(part.strip())
+                for j, part in enumerate(comma_parts):
+                    cleaned = part.strip()
+                    if cleaned:
+                        if j < len(comma_parts) - 1:
+                            final_phrases.append(cleaned + ',')
+                        else:
+                            final_phrases.append(cleaned)
 
-            line_doc = nlp(line_text)
-            full_line_words = [token.text for token in line_doc if not token.is_space]
+            used_indices = set()
 
             for phrase_idx, phrase in enumerate(final_phrases):
-                phrase = phrase.strip()
-                if not phrase:
-                    continue
-
                 phrase_doc = nlp(phrase)
-                phrase_words = [token.text for token in phrase_doc if not token.is_space]
+                phrase_words = [t.text for t in phrase_doc if not t.is_space and not t.is_punct]
+                phrase_text = " ".join(phrase_words).strip()
 
-                phrase_start = -1
-                for i in range(len(full_line_words) - len(phrase_words) + 1):
-                    if full_line_words[i:i+len(phrase_words)] == phrase_words:
-                        phrase_start = i
-                        break
-
-                if phrase_start == -1:
-                    self.logger.warning(f"Could not find phrase position in line: {phrase}")
+                if not phrase_words:
                     continue
 
-                phrase_pos_tags = pos_tags[phrase_start: phrase_start + len(phrase_words)]
-                total_syllables = sum(self._count_syllables(word) for word in phrase_words if word.isalpha())
+                try:
+                    # Find the first matching slice in token_words
+                    for i in range(len(token_words) - len(phrase_words) + 1):
+                        if token_words[i:i+len(phrase_words)] == phrase_words:
+                            phrase_start = i
+                            phrase_end = i + len(phrase_words) - 1
+                            if any(idx in used_indices for idx in range(phrase_start, phrase_end + 1)):
+                                raise ValueError("Overlapping phrase indices")
+                            break
+                    else:
+                        raise ValueError("Phrase words not aligned")
+                except ValueError:
+                    self.logger.warning(f"Could not align phrase in token list: {phrase_words}")
+                    continue
+
+                phrase_pos_tags = pos_tags[phrase_start: phrase_end + 1]
+                total_syllables = sum(
+                    len(re.findall(r'[aeiouy]+', word.lower().rstrip('e'))) or 1
+                    for word in phrase_words if word.isalpha()
+                )
 
                 chunk = {
                     "chunk_id": f"phrase_{line_id}_{phrase_idx}",
@@ -110,8 +129,8 @@ class PhraseChunker(ChunkBase):
                     "act": line_chunk.get("act"),
                     "scene": line_chunk.get("scene"),
                     "line": line_chunk.get("line"),
-                    "text": phrase,
-                    "word_index": f"{phrase_start},{phrase_start + len(phrase_words) - 1}",
+                    "text": phrase_text,
+                    "word_index": f"{phrase_start},{phrase_end}",
                     "word_count": len(phrase_words),
                     "POS": phrase_pos_tags,
                     "syllables": total_syllables,
@@ -121,9 +140,9 @@ class PhraseChunker(ChunkBase):
                     "ends_with_punctuation": bool(re.search(r'[.!?;:,]$', phrase))
                 }
                 chunks.append(chunk)
+                used_indices.update(range(phrase_start, phrase_end + 1))
                 self.logger.debug(
-                    f"Created phrase chunk {chunk['chunk_id']} from line {line_id}: "
-                    f"{len(phrase)} chars, {len(phrase_words)} words"
+                    f"Created phrase chunk {chunk['chunk_id']} from line {line_id}: {len(phrase)} chars, {len(phrase_words)} words, word_index: {phrase_start}-{phrase_end}"
                 )
 
         self.logger.info(f"Completed phrase chunking: created {len(chunks)} chunks from line chunks")
