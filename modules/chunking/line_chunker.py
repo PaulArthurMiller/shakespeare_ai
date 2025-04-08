@@ -120,19 +120,20 @@ class LineChunker(ChunkBase):
         return max(1, len(vowels))
     
     def _process_line_with_spacy(self, line: str) -> Tuple[List[str], List[str], int]:
-        """Use spaCy for tokenization/POS if available, otherwise fallback to regex-based split."""
+        """Use spaCy for tokenization/POS, excluding punctuation and whitespace."""
         if not SPACY_AVAILABLE:
-            words = re.findall(r"\w+[\w']*", line)
+            words = re.findall(r"\b\w[\w']*\b", line)
             pos_tags = [""] * len(words)
             return words, pos_tags, len(words)
+        
         try:
             doc = nlp(line)
-            words = [token.text for token in doc]
-            pos_tags = [token.pos_ for token in doc]
+            words = [token.text for token in doc if not token.is_punct and not token.is_space]
+            pos_tags = [token.pos_ for token in doc if not token.is_punct and not token.is_space]
             return words, pos_tags, len(words)
         except Exception as e:
             self.logger.error(f"spaCy error: {e}")
-            words = re.findall(r"\w+[\w']*", line)
+            words = re.findall(r"\b\w[\w']*\b", line)
             pos_tags = [""] * len(words)
             return words, pos_tags, len(words)
     
@@ -293,7 +294,7 @@ class LineChunker(ChunkBase):
 
 if __name__ == "__main__":
     input_file = "data/processed_texts/complete_shakespeare_ready.txt"
-    output_file = "data/processed_chunks/line_chunks.json"
+    output_file = "data/processed_chunks/lines.json"
     logger = CustomLogger("LineChunkerMain", log_level="INFO")
     
     try:

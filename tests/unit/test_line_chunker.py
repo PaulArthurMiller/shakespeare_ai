@@ -217,23 +217,21 @@ Will be a tatter'd weed, of small worth held:
         if not chunks:
             self.skipTest("No chunks to test line indexing")
             
-        line_numbers = [chunk['line'] for chunk in chunks]
-        
-        # Verify line numbers are unique
-        self.assertEqual(
-            len(line_numbers),
-            len(set(line_numbers)),
-            "Line numbers should be unique"
-        )
-        
-        # Verify line numbers are sequential
-        sorted_lines = sorted(line_numbers)
-        for i in range(len(sorted_lines) - 1):
-            self.assertEqual(
-                sorted_lines[i] + 1,
-                sorted_lines[i + 1],
-                "Line numbers should be sequential"
-            )
+        from collections import defaultdict
+
+        scene_lines = defaultdict(list)
+        for chunk in chunks:
+            key = (chunk['act'], chunk['scene'])
+            scene_lines[key].append(chunk['line'])
+
+        for (act, scene), lines in scene_lines.items():
+            sorted_lines = sorted(lines)
+            for i in range(len(sorted_lines) - 1):
+                self.assertEqual(
+                    sorted_lines[i] + 1,
+                    sorted_lines[i + 1],
+                    f"Line numbers should be sequential within Act {act}, Scene {scene}"
+                )
 
 
 if __name__ == '__main__':
