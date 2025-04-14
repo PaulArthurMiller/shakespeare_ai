@@ -99,6 +99,9 @@ class PhraseChunker(ChunkBase):
                 phrase_words = [t.text for t in phrase_doc if not t.is_space and not t.is_punct]
                 phrase_text = " ".join(phrase_words).strip()
 
+                if len(phrase_words) < 3:
+                   continue  # Skip phrases with fewer than 3 words
+
                 if not phrase_words:
                     continue
 

@@ -71,6 +71,7 @@ embeddings/chromadb_vectors/**/*.*
 *.png
 *.jpg
 *.pdf
+*.json
 
 # JSON and exceptions
 -*.json

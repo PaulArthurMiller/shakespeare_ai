@@ -12,16 +12,46 @@ class EmbeddingGenerator:
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         self.logger.debug(f"Embedding {len(texts)} texts")
-        try:
-            response = openai.embeddings.create(
-                input=texts,
-                model=self.model_name
-            )
-            embeddings = [item.embedding for item in response.data]
-            return embeddings
-        except Exception as e:
-            self.logger.error(f"Error embedding texts: {e}")
-            raise
+
+        MAX_TOKENS = 600_000
+        BATCH_SIZE_LIMIT = 1500  # fallback: max number of items per batch
+
+        def estimate_tokens(text: str) -> int:
+            return int(len(text.split()) * 1.33)
+
+        batches = []
+        current_batch = []
+        current_tokens = 0
+
+        for text in texts:
+            tokens = estimate_tokens(text)
+            if (current_tokens + tokens > MAX_TOKENS) or (len(current_batch) >= BATCH_SIZE_LIMIT):
+                batches.append(current_batch)
+                current_batch = []
+                current_tokens = 0
+            current_batch.append(text)
+            current_tokens += tokens
+
+        if current_batch:
+            batches.append(current_batch)
+
+        self.logger.info(f"Splitting into {len(batches)} batches for embedding")
+
+        all_embeddings = []
+        for idx, batch in enumerate(batches):
+            self.logger.debug(f"Sending batch {idx + 1}/{len(batches)} with {len(batch)} texts")
+            try:
+                response = openai.embeddings.create(
+                    input=batch,
+                    model=self.model_name
+                )
+                batch_embeddings = [item.embedding for item in response.data]
+                all_embeddings.extend(batch_embeddings)
+            except Exception as e:
+                self.logger.error(f"Error embedding batch {idx + 1}: {e}")
+                raise
+
+        return all_embeddings
 
     def embed_chunks(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         texts = [chunk['text'] for chunk in chunks]

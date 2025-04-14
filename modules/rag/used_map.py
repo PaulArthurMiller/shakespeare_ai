@@ -1,46 +1,95 @@
+# modules/rag/used_map.py
+
 import os
 import json
-from typing import Optional, Dict, List
+from typing import Optional, Dict, Set
 from modules.utils.logger import CustomLogger
 
 class UsedMap:
-    def __init__(self, filepath: str = "data/used_chunks_map.json", logger=None):
-        self.filepath = filepath
+    def __init__(self, storage_dir: str = "data/used_maps/", logger: Optional[CustomLogger] = None):
+        self.storage_dir = storage_dir
+        os.makedirs(self.storage_dir, exist_ok=True)
         self.logger = logger or CustomLogger("UsedMap")
-        self.used_map: Dict[str, List[str]] = {}
-        self.load()
+        self.active_translation_id: Optional[str] = None
+        self.used_maps: Dict[str, Dict[str, Set[str]]] = {}  # translationID -> {reference_key -> set(context_ranges)}
 
-    def mark_used(self, chunk_id: str, context: Optional[str] = None):
-        context = context or "global"
-        if chunk_id not in self.used_map:
-            self.used_map[chunk_id] = []
-        if context not in self.used_map[chunk_id]:
-            self.used_map[chunk_id].append(context)
-            self.logger.debug(f"Marked chunk '{chunk_id}' as used in context '{context}'")
+    def _get_filepath(self, translation_id: str) -> str:
+        return os.path.join(self.storage_dir, f"{translation_id}_used_map.json")
 
-    def was_used(self, chunk_id: str, context: Optional[str] = None) -> bool:
-        context = context or "global"
-        return context in self.used_map.get(chunk_id, [])
-
-    def reset(self):
-        self.used_map.clear()
-        self.logger.info("Usage map reset.")
-
-    def save(self):
-        os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
-        with open(self.filepath, 'w', encoding='utf-8') as f:
-            json.dump(self.used_map, f, indent=2)
-        self.logger.info(f"Saved used map to {self.filepath}")
-
-    def load(self):
-        if os.path.exists(self.filepath):
+    def load(self, translation_id: str) -> None:
+        """Load the used map for a given translation ID."""
+        self.active_translation_id = translation_id
+        path = self._get_filepath(translation_id)
+        if os.path.exists(path):
             try:
-                with open(self.filepath, 'r', encoding='utf-8') as f:
-                    self.used_map = json.load(f)
-                self.logger.info(f"Loaded used map from {self.filepath}")
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                self.used_maps[translation_id] = {
+                    k: set(v) for k, v in data.items()
+                }
+                self.logger.info(f"Loaded used map for translationID '{translation_id}' from {path}")
             except Exception as e:
-                self.logger.warning(f"Failed to load used map: {e}")
-                self.used_map = {}
+                self.logger.warning(f"Failed to load used map for '{translation_id}': {e}")
+                self.used_maps[translation_id] = {}
         else:
-            self.used_map = {}
-            self.logger.info(f"No existing used map found at {self.filepath}, starting fresh")
+            self.logger.info(f"No existing used map for '{translation_id}' found. Starting new map.")
+            self.used_maps[translation_id] = {}
+
+    def save(self, translation_id: Optional[str] = None) -> None:
+        """Save the used map for the current or specified translation ID."""
+        tid = translation_id or self.active_translation_id
+        if not tid:
+            self.logger.error("No translation ID set for saving used map.")
+            return
+
+        path = self._get_filepath(tid)
+        try:
+            serializable_map = {
+                k: list(v) for k, v in self.used_maps.get(tid, {}).items()
+            }
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(serializable_map, f, indent=2)
+            self.logger.info(f"Used map for translationID '{tid}' saved to {path}")
+        except Exception as e:
+            self.logger.error(f"Failed to save used map for '{tid}': {e}")
+
+    def mark_used(self, reference_key: str, context_range: str) -> None:
+        """Mark a chunk reference+range as used for the current translation."""
+        tid = self.active_translation_id
+        if not tid:
+            self.logger.error("Cannot mark used: No translation ID set.")
+            return
+
+        map_for_tid = self.used_maps.setdefault(tid, {})
+        contexts = map_for_tid.setdefault(reference_key, set())
+        if context_range not in contexts:
+            contexts.add(context_range)
+            self.logger.debug(f"Marked used: [{reference_key}] -> {context_range}")
+
+    def was_used(self, reference_key: str, context_range: str) -> bool:
+        """Check if a reference+range is already used in the current translation."""
+        tid = self.active_translation_id
+        if not tid:
+            self.logger.warning("No translation ID set; assuming not used.")
+            return False
+
+        return context_range in self.used_maps.get(tid, {}).get(reference_key, set())
+
+    def reset(self, translation_id: Optional[str] = None) -> None:
+        """Clear the used map for the specified or current translation ID."""
+        tid = translation_id or self.active_translation_id
+        if tid:
+            self.used_maps[tid] = {}
+            self.logger.info(f"Reset used map for translationID '{tid}'")
+        else:
+            self.logger.warning("No translation ID provided for reset.")
+
+    def get_used_map(self, translation_id: Optional[str] = None) -> Dict[str, Set[str]]:
+        """Return the used map for a given translation ID (or current one)."""
+        tid = translation_id or self.active_translation_id
+        if not tid:
+            self.logger.warning("No translation ID set when requesting used map.")
+            return {}
+
+        return self.used_maps.setdefault(tid, {})
+

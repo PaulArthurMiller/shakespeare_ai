@@ -21,10 +21,10 @@
 # def main():
 #     writer = SceneWriter(
 #         config_path="modules/playwright/config.py",
-#         expanded_story_path="data/modern_play/expanded_story.json"
+#         expanded_story_path="data/modern_play/expanded_story2.json"
 #     )
 #     writer.generate_scenes()
-#     print("Scene generation complete. Check 'data/modern_play/generated_scenes/' for output.")
+#     print("Scene generation complete. Check 'data/modern_play/generated_scenes_claude2' for output.")
 
 # if __name__ == "__main__":
 #     main()
@@ -44,8 +44,8 @@ def roman_to_int(roman: str) -> int:
             prev = value
     return result
 
-directory = "data/modern_play/generated_scenes_claude"
-output_path = "data/modern_play/modern_play_combined.md"
+directory = "data/modern_play/generated_scenes_claude2"
+output_path = "data/modern_play/modern_play_combined2.md"
 
 scene_files = sorted(
     [f for f in os.listdir(directory) if f.endswith(".md")],

@@ -22,7 +22,7 @@ class SceneWriter:
         self.temperature = self.config.get("temperature", 0.7)
 
         self.expanded_story_path = expanded_story_path
-        self.output_dir = "data/modern_play/generated_scenes_claude"
+        self.output_dir = "data/modern_play/generated_scenes_claude2"
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.openai_client = None
@@ -76,6 +76,8 @@ class SceneWriter:
         return f"""
 You are writing dramatic dialog for a play inspired by Shakespeare's structure, but using **modern American English**.
 
+All dialog must be grounded in the following themes: legacy vs mortality, logic without wisdom, the price of silence, power as isolation, and rewriting history. Let these ideas subtly shape tone, pacing, and conflict throughout each scene. Character voices and beats are provided. Maintain emotional resonance and moral complexity.
+
 The setting is: {setting}
 
 The characters in this scene are: {characters}
@@ -95,7 +97,7 @@ Guidelines:
 - Mix in shorter spoken lines and back and forth between characters where appropriate
 - Use long, extended speeches, similar to Shakespeare, where a character's explanation of motives or plans is relevant
 - Break long speeches into multiple lines, as Shakespeare would
-- Include simple stage directions like [Mortimer enters], [Edgar aside], etc.
+- Include simple stage directions like [Mortimer enters], [Edgar aside], etc. Keep stage directions short and sparse.
 - Each scene should contain **between 1,200 and 1,500 words of spoken text**, not counting character names or stage directions
 - Return only the formatted play script
 
@@ -115,7 +117,7 @@ But the one upon which I am speaking.
         if self.model_provider == "anthropic" and self.anthropic_client:
             response = self.anthropic_client.messages.create(
                 model=self.model_name,
-                max_tokens=3000,
+                max_tokens=4000,
                 temperature=self.temperature,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -142,17 +144,17 @@ But the one upon which I am speaking.
             raise RuntimeError("No valid model client initialized")
 
     def generate_scenes(self):
-        for act, act_data in self.story.items():
-            for scene in act_data.get("scenes", []):
-                scene_num = scene.get("scene", "X")
-                self.logger.info(f"Generating Act {act}, Scene {scene_num}")
-                prompt = self._build_prompt(act, scene)
-                try:
-                    dialog = self._call_model(prompt)
-                    filename = f"act_{act.lower()}_scene_{scene_num}"
-                    with open(os.path.join(self.output_dir, f"{filename}.md"), "w", encoding="utf-8") as f:
-                        f.write(f"ACT {act}\n\nSCENE {scene_num}\n\n{dialog}")
-                    with open(os.path.join(self.output_dir, f"{filename}.json"), "w", encoding="utf-8") as f:
-                        json.dump({"act": act, "scene": scene_num, "script": dialog}, f, indent=2)
-                except Exception as e:
-                    self.logger.error(f"Failed to generate scene {act}.{scene_num}: {e}")
+        for scene in self.story.get("scenes", []):
+            act = scene.get("act", "X")
+            scene_num = scene.get("scene", "X")
+            self.logger.info(f"Generating Act {act}, Scene {scene_num}")
+            prompt = self._build_prompt(act, scene)
+            try:
+                dialog = self._call_model(prompt)
+                filename = f"act_{act.lower()}_scene_{scene_num}"
+                with open(os.path.join(self.output_dir, f"{filename}.md"), "w", encoding="utf-8") as f:
+                    f.write(f"ACT {act}\n\nSCENE {scene_num}\n\n{dialog}")
+                with open(os.path.join(self.output_dir, f"{filename}.json"), "w", encoding="utf-8") as f:
+                    json.dump({"act": act, "scene": scene_num, "script": dialog}, f, indent=2)
+            except Exception as e:
+                self.logger.error(f"Failed to generate scene {act}.{scene_num}: {e}")

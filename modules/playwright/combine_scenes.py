@@ -1,8 +1,8 @@
 import os
 
 # Adjust this to match your project's path
-directory = "data/modern_play/generated_scenes_claude"
-output_path = "data/modern_play/modern_play_combined.md"
+directory = "data/modern_play/generated_scenes_claude2"
+output_path = "data/modern_play/modern_play_combined2.md"
 
 # Sort files to ensure proper order: act_1_scene_1.md, etc.
 scene_files = sorted(
