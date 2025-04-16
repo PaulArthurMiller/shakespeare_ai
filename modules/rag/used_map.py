@@ -2,7 +2,7 @@
 
 import os
 import json
-from typing import Optional, Dict, Set
+from typing import Optional, Dict, Set, List, Union
 from modules.utils.logger import CustomLogger
 
 class UsedMap:
@@ -53,27 +53,39 @@ class UsedMap:
         except Exception as e:
             self.logger.error(f"Failed to save used map for '{tid}': {e}")
 
-    def mark_used(self, reference_key: str, context_range: str) -> None:
+    def mark_used(self, reference_key: str, context_range: Union[str, List[int]]) -> None:
         """Mark a chunk reference+range as used for the current translation."""
         tid = self.active_translation_id
         if not tid:
             self.logger.error("Cannot mark used: No translation ID set.")
             return
 
+        # Convert context_range to a string regardless of its original type
+        if isinstance(context_range, list):
+            context_str = ",".join(str(i) for i in context_range)
+        else:
+            context_str = str(context_range)  # Ensure it's a string
+        
         map_for_tid = self.used_maps.setdefault(tid, {})
         contexts = map_for_tid.setdefault(reference_key, set())
-        if context_range not in contexts:
-            contexts.add(context_range)
-            self.logger.debug(f"Marked used: [{reference_key}] -> {context_range}")
+        if context_str not in contexts:
+            contexts.add(context_str)
+            self.logger.debug(f"Marked used: [{reference_key}] -> {context_str}")
 
-    def was_used(self, reference_key: str, context_range: str) -> bool:
+    def was_used(self, reference_key: str, context_range: Union[str, List[int]]) -> bool:
         """Check if a reference+range is already used in the current translation."""
         tid = self.active_translation_id
         if not tid:
             self.logger.warning("No translation ID set; assuming not used.")
             return False
-
-        return context_range in self.used_maps.get(tid, {}).get(reference_key, set())
+        
+        # Convert to string for comparison
+        if isinstance(context_range, list):
+            context_str = ",".join(str(i) for i in context_range)
+        else:
+            context_str = str(context_range)
+        
+        return context_str in self.used_maps.get(tid, {}).get(reference_key, set())
 
     def reset(self, translation_id: Optional[str] = None) -> None:
         """Clear the used map for the specified or current translation ID."""

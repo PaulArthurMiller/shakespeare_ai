@@ -1,32 +1,28 @@
-# modules/translator/translation_manager.py
-
-import uuid
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, cast, Union
 from modules.utils.logger import CustomLogger
+from modules.translator.types import CandidateQuote
 from modules.validation.validator import Validator
+from modules.translator.rag_caller import RagCaller
+from modules.translator.selector import Selector
+from modules.translator.assembler import Assembler
 from modules.rag.used_map import UsedMap
 
-# Placeholder imports
-# from modules.translator.rag_caller import RagCaller
-# from modules.translator.selector import Selector
-# from modules.translator.assembler import Assembler
 
 class TranslationManager:
     def __init__(self, logger: Optional[CustomLogger] = None):
         self.logger = logger or CustomLogger("TranslationManager")
         self.logger.info("Initializing TranslationManager")
 
-        self.used_map = UsedMap(logger=self.logger)
-        self.validator = Validator()
+        self.used_map: UsedMap = UsedMap(logger=self.logger)
+        self.validator: Validator = Validator()
+        self.rag: RagCaller = RagCaller(logger=self.logger)
+        self.selector: Selector = Selector(used_map=self.used_map, validator=self.validator, logger=self.logger)
+        self.assembler: Assembler = Assembler()
 
-        # Placeholder components
-        self.rag = None      # RagCaller()
-        self.selector = None # Selector()
-        self.assembler = None # Assembler()
-
-        self.translation_id = None
+        self.translation_id: Optional[str] = None
 
     def _generate_translation_id(self) -> str:
+        import uuid
         return str(uuid.uuid4())[:8]
 
     def start_translation_session(self, translation_id: Optional[str] = None):
@@ -34,57 +30,124 @@ class TranslationManager:
         self.logger.info(f"Starting translation session: {self.translation_id}")
         self.used_map.load(self.translation_id)
 
-    def translate_line(self, modern_line: str) -> Optional[str]:
+    def translate_line(self, modern_line: str, selector_results: Dict[str, List[CandidateQuote]]) -> Optional[Dict[str, Any]]:
         if not self.translation_id:
             raise RuntimeError("Translation session not started. Call start_translation_session().")
 
         self.logger.info(f"Translating line: {modern_line}")
+
         try:
-            # === Step 1: Retrieve candidate quotes (placeholder logic) ===
-            candidates = []  # self.rag.retrieve_candidates(modern_line)
+            # === STEP 1: Prompt Preparation ===
+            self.logger.debug("STEP 1: Calling Selector.prepare_prompt_structure")
+            prompt_structure, temp_map = self.selector.prepare_prompt_structure(selector_results)
+            if not prompt_structure or not any(prompt_structure.values()):
+                self.logger.warning("STEP 1 FAILED: No valid candidates to build prompt structure.")
+                return None
+            self.logger.debug("STEP 1 COMPLETE: Prompt structure and temp_map created.")
 
-            # === Step 2: Filter and rank ===
-            valid_candidates = []  # self.selector.filter_candidates(candidates, self.used_map)
-            # valid_candidates = self.selector.rank_candidates(valid_candidates, modern_line)
+            # === STEP 2: LLM Assembly ===
+            self.logger.debug("STEP 2: Calling Assembler.assemble_line")
+            assembled_result = self.assembler.assemble_line(modern_line, prompt_structure)
+            if not assembled_result:
+                self.logger.warning("STEP 2 FAILED: Assembler returned incomplete or invalid result.")
+                return None
+            self.logger.debug("STEP 2 COMPLETE: Assembler returned assembled_result.")
 
-            # === Step 3: Select best combination ===
-            selected_candidates = []  # self.selector.select_best_candidates(valid_candidates)
+            # === STEP 3: Extract result and fix temp_ids format if needed ===
+            assembled_text = assembled_result.get("text", "").strip()
+            temp_ids_used = assembled_result.get("temp_ids", [])
 
-            if not selected_candidates:
-                self.logger.warning("No suitable candidates selected.")
+            if isinstance(temp_ids_used, dict):
+                self.logger.warning("STEP 3: LLM returned temp_ids as dict, converting to list.")
+                temp_ids_used = list(temp_ids_used.values())
+
+            if not assembled_text or not temp_ids_used:
+                self.logger.warning("STEP 3 FAILED: Missing text or temp_ids in assembler output.")
+                return None
+            self.logger.debug("STEP 3 COMPLETE: Assembled text and temp_ids extracted.")
+            
+            # Log the actual assembled content for debugging
+            self.logger.info(f"Assembled text: '{assembled_text}' using temp_ids: {temp_ids_used}")
+
+            # === STEP 4: Validation of returned IDs ===
+            self.logger.debug("STEP 4: Validating temp_ids_used and looking up candidates")
+            valid_temp_ids = set(temp_map.keys())
+            invalid_ids = [tid for tid in temp_ids_used if tid not in valid_temp_ids]
+            if invalid_ids:
+                self.logger.warning(f"STEP 4 FAILED: Invalid temp_ids in result: {invalid_ids}")
                 return None
 
-            references = [c.reference for c in selected_candidates]
+            used_candidates = [temp_map[cid] for cid in temp_ids_used]
+            references = [c.reference for c in used_candidates]
+            
+            # Log references for debugging
+            for i, ref in enumerate(references):
+                self.logger.debug(f"Reference {i+1}: {ref}")
+                
+            self.logger.debug("STEP 4 COMPLETE: Used candidates and references extracted.")
 
-            # === Step 4: Assemble final line ===
-            assembled_line = ""  # self.assembler.assemble_line(selected_candidates)
-
-            # === Step 5: Validate assembled line ===
-            if not self.validator.validate_line(assembled_line, references):
-                self.log_decision({
-                    "status": "validation_failed",
-                    "input": modern_line,
-                    "output": assembled_line,
-                    "references": references
-                })
+            # === STEP 5: Line Validation ===
+            self.logger.debug("STEP 5: Running final validator.validate_line")
+            validation_result = self.validator.validate_line(assembled_text, references)
+            if not validation_result:
+                self.logger.warning("STEP 5 FAILED: Validator failed on assembled line.")
                 return None
+            self.logger.debug("STEP 5 COMPLETE: Validator confirmed line is valid.")
 
-            # === Step 6: Mark all references used ===
+            # === STEP 6: Mark Used ===
+            self.logger.debug("STEP 6: Updating used map with references.")
             for ref in references:
-                ref_key = f"{ref['title']}|{ref['act']}|{ref['scene']}|{ref['line']}"
-                self.used_map.mark_used(ref_key, ref["word_index"])
-
+                # Create reference key from reference parts
+                ref_key = f"{ref.get('title', '')}|{ref.get('act', '')}|{ref.get('scene', '')}|{ref.get('line', '')}"
+                
+                # Extract word indices
+                word_index_str = ref.get("word_index", "")
+                if word_index_str and isinstance(word_index_str, str):
+                    try:
+                        # Handle both comma separated and dash formats
+                        if "," in word_index_str:
+                            start, end = map(int, word_index_str.split(","))
+                            word_indices = list(range(start, end + 1))
+                        else:
+                            word_indices = list(range(int(word_index_str.split("-")[0]), 
+                                                int(word_index_str.split("-")[1]) + 1))
+                        
+                        # Log the reference key and word indices for debugging
+                        self.logger.debug(f"Marked used: [{ref_key}] -> {word_index_str}")
+                        
+                        # Mark as used
+                        self.used_map.mark_used(ref_key, word_indices)
+                        self.logger.debug(f"Marked used: {ref_key} {word_indices}")
+                    except (ValueError, IndexError) as e:
+                        self.logger.warning(f"Invalid word_index format: {word_index_str} - {e}")
+                else:
+                    self.logger.warning(f"Missing or invalid word_index in reference: {ref}")
+            
             self.used_map.save()
+            self.logger.debug("STEP 6 COMPLETE: Used map updated and saved.")
 
-            # === Step 7: Log success ===
-            self.log_decision({
-                "status": "success",
-                "input": modern_line,
-                "output": assembled_line,
-                "references": references
-            })
-
-            return assembled_line
+            # === STEP 7: Return Final Output ===
+            self.logger.info("Line translated and validated successfully.")
+            
+            # Create the full reference information
+            full_references = []
+            for cid, ref in zip(temp_ids_used, references):
+                full_ref = {
+                    "temp_id": cid,
+                    "title": ref.get("title", "Unknown"),
+                    "act": ref.get("act", "Unknown"),
+                    "scene": ref.get("scene", "Unknown"),
+                    "line": ref.get("line", "Unknown"),
+                    "word_index": ref.get("word_index", "0,0")
+                }
+                full_references.append(full_ref)
+            
+            return {
+                "text": assembled_text,
+                "temp_ids": temp_ids_used,  # Keep temp_ids for debugging
+                "references": full_references,  # Use the improved references
+                "original_modern_line": modern_line  # Store the original modern line
+            }
 
         except Exception as e:
             self.logger.error(f"Translation error: {e}")
@@ -95,19 +158,37 @@ class TranslationManager:
             })
             return None
 
-    def translate_group(self, modern_lines: List[str]) -> List[str]:
+    def translate_group(self, modern_lines: List[str]) -> List[Dict[str, Any]]:
+        """Translate a group of modern lines."""
         self.logger.info(f"Translating group of {len(modern_lines)} lines")
-        return [self.translate_line(line) or "" for line in modern_lines]
+        results = []
+        
+        for line in modern_lines:
+            selector_results = self.rag.retrieve_all(line)
+            result = self.translate_line(line, selector_results)
+            if result is not None:
+                results.append(result)
+        
+        return results
 
-    def translate_scene(self, scene_lines: List[str]) -> List[str]:
-        self.logger.info("Translating full scene")
-        translated = self.translate_group(scene_lines)
-        # Optional future hook: line rewriter
-        return translated
+    def translate_scene(self, scene_lines: List[str]) -> List[Dict[str, Any]]:
+        self.logger.info(f"Starting scene translation: {len(scene_lines)} lines")
+        translated_scene: List[Dict[str, Any]] = []
+
+        for i, line in enumerate(scene_lines):
+            self.logger.info(f"Translating line {i + 1}/{len(scene_lines)}")
+            selector_results = self.rag.retrieve_all(line)
+            translated = self.translate_line(line, selector_results)
+            if translated:
+                translated_scene.append(translated)
+            else:
+                self.logger.warning(f"Line {i + 1} failed translation and was skipped")
+
+        self.logger.info(f"Completed scene translation: {len(translated_scene)} lines generated")
+        return translated_scene
 
     def get_usage_map(self) -> Dict[str, Any]:
         return self.used_map.get_used_map()
 
     def log_decision(self, details: Dict[str, Any]) -> None:
-        # Consider future: write to generation_log.json
         self.logger.debug(f"Decision Log: {details}")

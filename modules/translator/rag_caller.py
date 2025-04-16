@@ -26,10 +26,19 @@ class RagCaller:
 
     def retrieve_all(self, modern_line: str, top_k: int = 5) -> Dict[str, List[CandidateQuote]]:
         results = self.search_engine.search_line(modern_line, top_k)
+
         return {
-            "line": self._extract_candidates(results["search_chunks"]["line"], "line"),
-            "phrases": self._extract_candidates(results["search_chunks"]["phrases"], "phrases"),
-            "fragments": self._extract_candidates(results["search_chunks"]["fragments"], "fragments"),
+            "line": self._extract_candidates([results["search_chunks"]["line"]], "line"),
+            "phrases": [
+                candidate
+                for group in results["search_chunks"]["phrases"]
+                for candidate in self._extract_candidates([group], "phrases")
+            ],
+            "fragments": [
+                candidate
+                for group in results["search_chunks"]["fragments"]
+                for candidate in self._extract_candidates([group], "fragments")
+            ],
         }
 
     def _extract_candidates(self, raw_results: List[Dict[str, Any]], level: str) -> List[CandidateQuote]:
@@ -38,11 +47,71 @@ class RagCaller:
             docs = result.get("documents", [])
             metas = result.get("metadatas", [])
             scores = result.get("distances", [])
-            for doc, meta, score in zip(docs, metas, scores):
-                candidates.append(CandidateQuote(
-                    text=doc,
-                    reference=meta,
-                    score=score
-                ))
-        self.logger.debug(f"Extracted {len(candidates)} candidates from {level} level")
+            
+            # Guard against empty results
+            if not docs or not metas or not scores:
+                self.logger.warning(f"Empty data in result for {level} level")
+                continue
+            
+            # Handle the case where docs is a list of strings and metas is a list of lists
+            if isinstance(docs, list) and len(docs) > 0:
+                # In your case, it appears the first level is also a list
+                if isinstance(docs[0], list) and isinstance(metas[0], list):
+                    self.logger.debug(f"Processing nested list structure in {level} level")
+                    
+                    # For each document in the list
+                    for i, (doc_list, meta_list, score_list) in enumerate(zip(docs, metas, scores)):
+                        # For each potential document text option
+                        for j, doc_text in enumerate(doc_list):
+                            # Get corresponding metadata if available
+                            if j < len(meta_list) and isinstance(meta_list[j], dict):
+                                meta_dict = meta_list[j]
+                                # Get corresponding score if available
+                                if j < len(score_list):
+                                    # Handle different score types
+                                    if isinstance(score_list[j], (int, float)):
+                                        score_val = float(score_list[j])
+                                    else:
+                                        # Default score if not a number
+                                        score_val = 1.0
+                                else:
+                                    score_val = 1.0
+                                
+                                candidates.append(CandidateQuote(
+                                    text=str(doc_text),
+                                    reference=meta_dict,
+                                    score=score_val
+                                ))
+                                self.logger.debug(f"Added candidate from nested structure: level={level}, item={i}-{j}, score={score_val}")
+                
+                # Handle the case where each doc is a string but metas is a list of dictionaries
+                elif all(isinstance(d, str) for d in docs) and all(isinstance(m, list) for m in metas):
+                    self.logger.debug(f"Processing flat document list with metadata lists in {level} level")
+                    
+                    for i, (doc_text, meta_list, score_entry) in enumerate(zip(docs, metas, scores)):
+                        # For each metadata dictionary in the list
+                        for j, meta_dict in enumerate(meta_list):
+                            if isinstance(meta_dict, dict):
+                                # Process score value safely
+                                if isinstance(score_entry, list) and j < len(score_entry):
+                                    # Handle different score types
+                                    if isinstance(score_entry[j], (int, float)):
+                                        score_val = float(score_entry[j])
+                                    else:
+                                        # Default score if not a number
+                                        score_val = 1.0
+                                elif isinstance(score_entry, (int, float)):
+                                    score_val = float(score_entry)
+                                else:
+                                    score_val = 1.0
+                                
+                                candidates.append(CandidateQuote(
+                                    text=str(doc_text),
+                                    reference=meta_dict,
+                                    score=score_val
+                                ))
+                                self.logger.debug(f"Added candidate from flat document with metadata list: level={level}, doc={i}, meta={j}")
+        
+        self.logger.info(f"Extracted {len(candidates)} candidates from {level} level")
         return candidates
+

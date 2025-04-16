@@ -65,6 +65,8 @@ data/line_corpus/*
 data/modern_play/*
 data/prompts/*
 embeddings/chromadb_vectors/**/*.*
+outputs/test_run/*
+outputs/translated_scenes/*
 
 # Temporary and Generated Files
 *.txt
