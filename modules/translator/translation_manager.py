@@ -97,27 +97,42 @@ class TranslationManager:
             # === STEP 6: Mark Used ===
             self.logger.debug("STEP 6: Updating used map with references.")
             for ref in references:
-                # Create reference key from reference parts
-                ref_key = f"{ref.get('title', '')}|{ref.get('act', '')}|{ref.get('scene', '')}|{ref.get('line', '')}"
+                # Create reference key from reference parts with better handling of null/None values
+                title = ref.get('title', '')
+                act = ref.get('act', '')
+                scene = ref.get('scene', '')
+                line = ref.get('line', '')
+                
+                # Create a consistent reference key
+                ref_key = f"{title}|{act if act is not None else 'NULL'}|{scene if scene is not None else 'NULL'}|{line}"
                 
                 # Extract word indices
                 word_index_str = ref.get("word_index", "")
                 if word_index_str and isinstance(word_index_str, str):
                     try:
-                        # Handle both comma separated and dash formats
+                        # Handle different word_index formats
+                        word_indices = []
                         if "," in word_index_str:
                             start, end = map(int, word_index_str.split(","))
                             word_indices = list(range(start, end + 1))
+                        elif "-" in word_index_str:
+                            start, end = map(int, word_index_str.split("-"))
+                            word_indices = list(range(start, end + 1))
                         else:
-                            word_indices = list(range(int(word_index_str.split("-")[0]), 
-                                                int(word_index_str.split("-")[1]) + 1))
+                            # Try single number case
+                            try:
+                                index = int(word_index_str.strip())
+                                word_indices = [index]
+                            except ValueError:
+                                self.logger.warning(f"Invalid word_index format: {word_index_str}")
+                                continue
                         
                         # Log the reference key and word indices for debugging
-                        self.logger.debug(f"Marked used: [{ref_key}] -> {word_index_str}")
+                        self.logger.debug(f"Marking used: [{ref_key}] -> {word_indices}")
                         
                         # Mark as used
                         self.used_map.mark_used(ref_key, word_indices)
-                        self.logger.debug(f"Marked used: {ref_key} {word_indices}")
+                        
                     except (ValueError, IndexError) as e:
                         self.logger.warning(f"Invalid word_index format: {word_index_str} - {e}")
                 else:

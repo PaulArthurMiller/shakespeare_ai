@@ -107,21 +107,37 @@ class Validator:
             
             # Extract required metadata
             title = ref.get("title", "")
-            act = ref.get("act", "")
-            scene = ref.get("scene", "")
+            act = ref.get("act", "")  # Could be null/None in the data
+            scene = ref.get("scene", "")  # Could be null/None in the data
             line_num = ref.get("line", "")
             word_index = ref.get("word_index", "")
             
-            if not all([title, act, scene, str(line_num)]):
-                self.logger.warning(f"Incomplete reference metadata: {ref}")
+            # We still need some identifiers to find an entry
+            if not title or not str(line_num):
+                self.logger.warning(f"Incomplete essential reference metadata (title or line): {ref}")
                 continue
             
-            # Find the ground truth entry
+            # Find the ground truth entry - modified to handle null/None act/scene
             gt_entry = None
             for entry in self.ground_truth:
+                # Handle null act/scene more explicitly
+                act_match = False
+                scene_match = False
+                
+                # Check for null/None values or matching values
+                if (act is None or act == "" or act == "null") and (entry.get("act") is None or entry.get("act") == "" or entry.get("act") == "null"):
+                    act_match = True
+                elif str(entry.get("act")) == str(act):  # Convert both to string for comparison
+                    act_match = True
+                    
+                if (scene is None or scene == "" or scene == "null") and (entry.get("scene") is None or entry.get("scene") == "" or entry.get("scene") == "null"):
+                    scene_match = True
+                elif str(entry.get("scene")) == str(scene):  # Convert both to string for comparison
+                    scene_match = True
+                
                 if (entry.get("title") == title and 
-                    entry.get("act") == act and 
-                    entry.get("scene") == scene and 
+                    act_match and 
+                    scene_match and 
                     str(entry.get("line")) == str(line_num)):
                     gt_entry = entry
                     break

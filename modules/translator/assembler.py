@@ -3,7 +3,7 @@
 import json
 import re
 import importlib.util
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from modules.translator.types import CandidateQuote
 from modules.utils.logger import CustomLogger
 from openai import OpenAI
@@ -49,78 +49,53 @@ class Assembler:
         self.logger.info("Beginning line assembly")
         self.logger.debug(f"Modern line: {modern_line}")
         retries = 0
+        
+        # Create a copy of prompt_data that we can modify during retries
+        import copy
+        working_prompt_data = copy.deepcopy(prompt_data)
 
         while retries <= max_retries:
-            # Use escalation prompt after first failure
             if retries > 0:
-                prompt = self._build_escalation_prompt(modern_line, prompt_data, retries)
-                self.logger.info(f"Using escalation prompt (attempt {retries+1})")
-            else:
-                prompt = self._build_prompt(modern_line, prompt_data)
-                
+                # On retry, modify the prompt data
+                if retries == 1:
+                    # First retry: shuffle the order of quotes
+                    self.logger.info("First retry: Shuffling quote options")
+                    for form in working_prompt_data:
+                        import random
+                        random.shuffle(working_prompt_data[form])
+                elif retries == 2:
+                    # Second retry: shuffle again and potentially remove one option per category
+                    self.logger.info("Second retry: Shuffling and potentially removing quotes")
+                    for form in working_prompt_data:
+                        if len(working_prompt_data[form]) > 1:
+                            working_prompt_data[form].pop()  # Remove one option
+                        import random
+                        random.shuffle(working_prompt_data[form])
+            
+            # Generate the prompt and get LLM response
+            prompt = self._build_prompt(modern_line, working_prompt_data)
             response = self._call_model(prompt)
             parsed = self._extract_output(response)
 
-            if parsed is None:
+            # Check if we got a valid response with text
+            if parsed is None or "text" not in parsed:
                 self.logger.warning(f"Failed to parse LLM output on attempt {retries + 1}")
                 retries += 1
                 continue
 
-            assembled_line, temp_ids = parsed["text"], parsed["temp_ids"]
+            assembled_line = parsed["text"]
 
-            if self._mini_validate(assembled_line, temp_ids, prompt_data):
+            # Validate the assembled line and identify the quotes used
+            validation_result = self._mini_validate(assembled_line, working_prompt_data)
+            if isinstance(validation_result, dict):
                 self.logger.info("Mini-validation succeeded")
-                return {
-                    "text": assembled_line,
-                    "temp_ids": temp_ids
-                }
+                return validation_result  # Contains 'text' and 'temp_ids'
 
-            self.logger.warning(f"Mini-validation failed on attempt {retries + 1} for line: '{modern_line}'")
+            self.logger.warning(f"Mini-validation failed on attempt {retries + 1}")
             retries += 1
 
-        self.logger.error(f"Assembler failed after max retries for line: '{modern_line}'")
+        self.logger.error("Assembler failed after max retries")
         return None
-
-    def _build_escalation_prompt(self, modern_line: str, quote_options: Dict[str, List[Dict[str, Any]]], retry_count: int) -> str:
-        """Build a stronger prompt that emphasizes the strict requirements."""
-        quote_list = []
-        for form, options in quote_options.items():
-            for opt in options:
-                temp_id = opt.get("temp_id")
-                text = opt.get("text", "").strip()
-                score = opt.get("score", None)
-                line = f"[{form.upper()}] {temp_id}: \"{text}\""
-                if score is not None:
-                    line += f" (score: {score:.4f})"
-                quote_list.append(line)
-
-        quotes_str = "\n".join(quote_list)
-        
-        # Stronger language for the escalation prompt
-        emphasis = "⚠️ CRITICAL REQUIREMENT ⚠️" if retry_count == 2 else "IMPORTANT"
-        
-        return f"""
-        {emphasis}: You are translating modern English to Shakespeare-style verse. Your task requires ABSOLUTE PRECISION.
-
-        YOU MUST FOLLOW THESE REQUIREMENTS EXACTLY:
-        1. Use ONLY the exact Shakespeare quotes provided - WORD FOR WORD, with no additions or modifications
-        2. The temp_ids in your response MUST be listed IN THE EXACT ORDER they appear in your assembled line
-        3. Do not add ANY words that aren't in the quotes
-        4. Do not include ANY proper nouns 
-        5. Return only the assembled line and the ordered list of temp_ids used
-
-        Modern line to translate:
-        "{modern_line}"
-
-        Available Shakespeare quotes (choose 1-3):
-        {quotes_str}
-
-        Output your result in this JSON format:
-        {{
-        "text": "<your assembled line using EXACTLY the words from the quotes, keeping punctuation>",
-        "temp_ids": ["first_quote_used", "second_quote_used", ...] // MUST MATCH THE ORDER IN YOUR TEXT
-        }}
-        """.strip()
 
     def _build_prompt(self, modern_line: str, quote_options: Dict[str, List[Dict[str, Any]]]) -> str:
         quote_list = []
@@ -137,30 +112,26 @@ class Assembler:
         quotes_str = "\n".join(quote_list)
 
         return f"""
-    You are a playwright assistant generating Shakespeare-style dialog using a modern play line and selected source quotes. You use quotes from Shakespeare as puzzle pieces, fit together to match as closely as possible the modern play line.
+You are a playwright assistant generating Shakespeare-style dialog using a modern play line and selected source quotes. You use quotes from Shakespeare as puzzle pieces, fit together to match as closely as possible the modern play line.
 
-    Your job:
-    - Translate the modern English line into dramatic Shakespearean verse.
-    - Use ONLY the provided Shakespearean quotes, EXACTLY as written - NO modifications whatsoever.
-    - You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose.
-    - You may select 1 to 3 Shakespearean quotes (they can be lines, phrases, or fragments).
-    - You may only combine whole Shakespearean quotes - no partial usage is allowed.
-    - You may rearrange the order of the Shakespearean quotes but not change their internal wording.
-    - No proper nouns may be used.
-    - Return only one final line and the list of temp_ids for the Shakespearean quotes used, in order.
+Your job:
+- Translate the modern English line into dramatic Shakespearean verse.
+- Use ONLY the provided Shakespearean quotes, EXACTLY as written - NO modifications whatsoever.
+- You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose.
+- You may select 1 to 3 Shakespearean quotes (they can be lines, phrases, or fragments).
+- You may only combine whole Shakespearean quotes - no partial usage is allowed.
+- You may rearrange the order of the Shakespearean quotes but not change their internal wording.
+- No proper nouns may be used.
+- Return ONLY the final assembled line, without listing the temp_ids or any other information.
 
-    Modern play line:
-    "{modern_line}"
+Modern play line:
+"{modern_line}"
 
-    Here are your options:
-    {quotes_str}
+Here are your options:
+{quotes_str}
 
-    Output your result in the following JSON format:
-    {{
-    "text": "<your translated line using EXACTLY the text from the selected quotes>",
-    "temp_ids": ["temp_id_1", "temp_id_2", ...]
-    }}
-    """.strip()
+Your response should contain ONLY the assembled text, with no additional commentary.
+""".strip()
 
     def _call_model(self, prompt: str) -> str:
         if self.anthropic_client:
@@ -192,61 +163,119 @@ class Assembler:
 
     def _extract_output(self, response_text: str) -> Optional[Dict[str, Any]]:
         """
-        Parses the LLM output and extracts:
-        {
-            "text": "assembled line",
-            "temp_ids": ["temp_id_1", "temp_id_2"]
-        }
+        Parses the LLM output and extracts the assembled line.
         """
+        self.logger.debug(f"Raw LLM response: {response_text[:100]}...")  # Log first 100 chars
+        
         try:
-            # Strip markdown-style JSON blocks
-            cleaned = re.sub(r"^```(?:json)?\n?|```$", "", response_text.strip(), flags=re.MULTILINE)
-            data = json.loads(cleaned)
-            if "text" in data and "temp_ids" in data:
-                return data
+            # First check if the response is not empty
+            if not response_text or response_text.isspace():
+                self.logger.error("Empty or whitespace-only response from LLM")
+                return None
+                
+            # Clean up the response
+            cleaned = response_text.strip()
+            
+            # Remove any triple backticks if present
+            cleaned = re.sub(r"^```(?:json)?\n?|```$", "", cleaned, flags=re.MULTILINE)
+            
+            # Try to extract JSON if the model still tried to provide it
+            try:
+                json_pattern = r'\{.*\}'
+                json_match = re.search(json_pattern, cleaned, re.DOTALL)
+                
+                if json_match:
+                    json_str = json_match.group(0)
+                    self.logger.debug(f"Extracted JSON: {json_str[:100]}...")
+                    
+                    data = json.loads(json_str)
+                    if "text" in data:
+                        return {"text": data["text"]}
+            except (json.JSONDecodeError, AttributeError):
+                # Not JSON or couldn't extract, proceed with the cleaned text
+                pass
+            
+            # If no JSON structure was found or parsed, use the cleaned text directly
+            return {"text": cleaned}
+            
         except Exception as e:
             self.logger.warning(f"Error parsing JSON output: {e}")
+            self.logger.debug(f"Response causing error: {response_text[:200]}...")
+            
         return None
 
-    def _mini_validate(self, assembled_line: str, temp_ids: List[str], quote_data: Dict[str, List[Dict[str, Any]]]) -> bool:
-        """Ensure the returned temp_ids were in the original options, and the text only includes valid pieces."""
-        # First check if all temp_ids are valid
-        valid_ids = {q["temp_id"] for quotes in quote_data.values() for q in quotes}
-        for cid in temp_ids:
-            if cid not in valid_ids:
-                self.logger.warning(f"Invalid temp_id in response: {cid}")
-                return False
-
-        # Get the texts for the temp_ids that were used
-        used_texts = []
+    def _mini_validate(self, assembled_line: str, quote_data: Dict[str, List[Dict[str, Any]]]) -> Union[Dict[str, Any], bool]:
+        """
+        Validate the assembled line by identifying which quotes were used in order.
+        
+        Returns a dict with 'text' and 'temp_ids' if validation succeeds, or False if validation fails.
+        """
+        self.logger.info("Running mini-validation on assembled line")
+        self.logger.debug(f"Assembled line: '{assembled_line}'")
+        
+        # Function to normalize text to alphanumeric only
+        def normalize_text(text):
+            return ''.join(c.lower() for c in text if c.isalnum())
+        
+        # Normalize the assembled line for comparison
+        normalized_assembled = normalize_text(assembled_line)
+        self.logger.debug(f"Normalized assembled: '{normalized_assembled}'")
+        
+        # Collect all quotes from all levels and normalize them
+        all_quotes = []
         for form, quotes in quote_data.items():
             for quote in quotes:
-                if quote["temp_id"] in temp_ids:
-                    used_texts.append(quote["text"])
-                    self.logger.debug(f"Used text from {quote['temp_id']}: '{quote['text']}'")
+                all_quotes.append({
+                    "temp_id": quote["temp_id"],
+                    "original": quote["text"],
+                    "normalized": normalize_text(quote["text"])
+                })
         
-        # Normalize texts for comparison
-        def normalize_for_comparison(text):
-            # Remove punctuation and extra spaces
-            text = re.sub(r'[^\w\s]', '', text.lower())
-            text = re.sub(r'\s+', ' ', text).strip()
-            return text
+        # Sort quotes by length (descending) to match larger quotes first
+        all_quotes.sort(key=lambda q: len(q["normalized"]), reverse=True)
         
-        # Normalize the assembled line and all quotes
-        normalized_assembled = normalize_for_comparison(assembled_line)
-        normalized_quotes = [normalize_for_comparison(text) for text in used_texts]
+        # Track the temp_ids of the quotes used, in order
+        used_temp_ids = []
+        remaining_text = normalized_assembled
+        available_quotes = all_quotes.copy()
         
-        # Build all possible orderings of the quotes and see if any match the assembled text
-        import itertools
-        for perm in itertools.permutations(normalized_quotes):
-            combined = " ".join(perm)
-            if normalized_assembled == combined:
-                self.logger.debug(f"Assembled line matches exact combination of quotes: {perm}")
-                return True
+        # Maximum of 3 quotes allowed
+        for position in range(3):
+            if not remaining_text:  # No more text to match
+                break
+                
+            found_match = False
+            for i, quote in enumerate(available_quotes):
+                # Check if this quote is at the beginning of the remaining text
+                if remaining_text.startswith(quote["normalized"]):
+                    # Found a match at the beginning
+                    used_temp_ids.append(quote["temp_id"])
+                    self.logger.debug(f"Match at position {position+1}: {quote['temp_id']} - '{quote['original']}'")
+                    
+                    # Remove the matched text from the beginning
+                    remaining_text = remaining_text[len(quote["normalized"]):]
+                    
+                    # Remove this quote from available options
+                    available_quotes.pop(i)
+                    
+                    found_match = True
+                    break
+            
+            if not found_match and remaining_text:
+                # If we can't match the beginning of the remaining text, validation fails
+                self.logger.warning(f"No matching quote found at the beginning of remaining text: '{remaining_text}'")
+                return False
         
-        self.logger.warning(f"Assembled line does not match any combination of quotes")
-        self.logger.debug(f"Normalized assembled: '{normalized_assembled}'")
-        self.logger.debug(f"Normalized quotes: {normalized_quotes}")
+        # If we've matched all text, validation succeeds
+        if not remaining_text:
+            self.logger.info(f"Validation succeeded. Used quotes in order: {used_temp_ids}")
+            return {
+                "text": assembled_line,
+                "temp_ids": used_temp_ids
+            }
+        
+        # If we've used 3 quotes but text still remains, validation fails
+        self.logger.warning(f"Validation failed. Text remains after 3 quotes: '{remaining_text}'")
         return False
 
     def reformat_result(self, assembled: Dict[str, Any], references: List[Dict[str, str]]) -> Dict[str, Any]:

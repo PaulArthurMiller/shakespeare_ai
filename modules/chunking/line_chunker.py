@@ -49,8 +49,8 @@ class LineChunker(ChunkBase):
             self.logger.warning("spaCy is not available - using fallback tokenization")
             self.logger.info("To install spaCy: pip install spacy && python -m spacy download en_core_web_sm")
         
-        # Regex for detecting acts (roman numerals) and scenes (roman or digits)
-        self.act_pattern = re.compile(r'^ACT\s+([IVX]+)', re.IGNORECASE)
+        # Updated regex for detecting acts (roman numerals or INDUCTION) and scenes (roman, digits, or PROLOGUE)
+        self.act_pattern = re.compile(r'^ACT\s+((?:INDUCTION|[IVX]+))', re.IGNORECASE)
         self.scene_pattern = re.compile(r'^SCENE\s+((?:PROLOGUE|[IVX]+|\d+))', re.IGNORECASE)
         
         # Pattern for single-number lines (for sonnets, if current_title contains "SONNETS")
@@ -99,13 +99,18 @@ class LineChunker(ChunkBase):
             "TWELFTH NIGHT; OR, WHAT YOU WILL",
             "THE TWO GENTLEMEN OF VERONA",
             "THE TWO NOBLE KINSMEN",
-            "THE WINTER'S TALE",
+            "A WINTER'S TALE",
             "A LOVER'S COMPLAINT",
             "THE PASSIONATE PILGRIM",
             "THE PHOENIX AND THE TURTLE",
             "THE RAPE OF LUCRECE",
             "VENUS AND ADONIS"
         }
+        
+        # Track detected titles, acts, and scenes for validation
+        self.titles_detected = set()
+        self.acts_by_title = {}
+        self.scenes_by_title_and_act = {}
         
         self.logger.debug("Compiled regular expressions for text parsing")
     
@@ -170,6 +175,11 @@ class LineChunker(ChunkBase):
         
         chunks = []
         
+        # Reset tracking dictionaries for validation
+        self.titles_detected = set()
+        self.acts_by_title = {}
+        self.scenes_by_title_and_act = {}
+        
         for raw_line in lines:
             line = raw_line.strip()
             if not line:
@@ -182,6 +192,11 @@ class LineChunker(ChunkBase):
             if line.upper() in self.shakespeare_titles:
                 current_title = line
                 self.logger.info(f"Detected title: {current_title}")
+                # Track titles for validation
+                self.titles_detected.add(current_title)
+                self.acts_by_title[current_title] = set()
+                self.scenes_by_title_and_act[current_title] = {}
+                
                 # Reset act/scene/line numbering for a new play
                 current_act = None
                 current_scene = None
@@ -196,6 +211,13 @@ class LineChunker(ChunkBase):
                 current_scene = None
                 scene_line_index = 0
                 self.logger.info(f"Detected Act {current_act} for title '{current_title}'")
+                
+                # Track acts for validation
+                if current_title in self.acts_by_title:
+                    self.acts_by_title[current_title].add(current_act)
+                    if current_act not in self.scenes_by_title_and_act[current_title]:
+                        self.scenes_by_title_and_act[current_title][current_act] = set()
+                
                 continue
             
             # Check for SCENE
@@ -204,6 +226,12 @@ class LineChunker(ChunkBase):
                 current_scene = scene_match.group(1).upper()  # could be "PROLOGUE" or digits
                 scene_line_index = 0  # reset line numbering for new scene
                 self.logger.info(f"Detected Scene {current_scene} in Act {current_act}, title '{current_title}'")
+                
+                # Track scenes for validation
+                if (current_title in self.scenes_by_title_and_act and 
+                    current_act in self.scenes_by_title_and_act[current_title]):
+                    self.scenes_by_title_and_act[current_title][current_act].add(current_scene)
+                
                 continue
             
             # Check for sonnet numbers if this is THE SONNETS
@@ -214,6 +242,13 @@ class LineChunker(ChunkBase):
                     current_scene = ""
                     scene_line_index = 0
                     self.logger.info(f"Detected Sonnet {current_act}")
+                    
+                    # Track sonnet numbers as acts for validation
+                    if current_title in self.acts_by_title:
+                        self.acts_by_title[current_title].add(current_act)
+                        if current_act not in self.scenes_by_title_and_act[current_title]:
+                            self.scenes_by_title_and_act[current_title][current_act] = set()
+                    
                     continue
             
             # If this looks like a structural line (all-caps or something we skip), skip it
@@ -242,6 +277,14 @@ class LineChunker(ChunkBase):
                 "mood": "neutral",
                 "word_count": word_count
             }
+            
+            # Log warning for incomplete metadata
+            if current_act is None or current_scene is None:
+                self.logger.warning(
+                    f"⚠️ Line with incomplete metadata: title='{current_title}', "
+                    f"act={current_act}, scene={current_scene}, line={scene_line_index}: {line[:50]}..."
+                )
+            
             chunks.append(chunk)
             self.logger.debug(
                 f"Created chunk_{chunk_counter} for title='{current_title}', "
@@ -251,7 +294,25 @@ class LineChunker(ChunkBase):
         self.chunks = chunks
         elapsed = time.time() - start_time
         self.logger.info(f"Completed text chunking: {len(chunks)} chunks in {elapsed:.2f}s")
+        
+        # Print validation summary of detected titles, acts, and scenes
+        self._print_detection_summary()
+        
         return chunks
+    
+    def _print_detection_summary(self) -> None:
+        """Print a summary of detected titles, acts, and scenes for validation."""
+        self.logger.info("\n=== DETECTION SUMMARY ===")
+        self.logger.info(f"Detected {len(self.titles_detected)} titles:")
+        
+        for title in sorted(self.titles_detected):
+            acts = self.acts_by_title.get(title, set())
+            self.logger.info(f"\n{title}:")
+            self.logger.info(f"  - Acts: {', '.join(sorted(acts)) if acts else 'None'}")
+            
+            for act in sorted(acts):
+                scenes = self.scenes_by_title_and_act.get(title, {}).get(act, set())
+                self.logger.info(f"    - Act {act} Scenes: {', '.join(sorted(scenes)) if scenes else 'None'}")
     
     def get_lines_by_act_scene(self, act: str, scene: str) -> List[Dict[str, Any]]:
         """Retrieve lines that match a given Act and Scene."""
