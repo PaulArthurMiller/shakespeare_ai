@@ -117,8 +117,8 @@ You are a playwright assistant generating Shakespeare-style dialog using a moder
 Your job:
 - Translate the modern English line into dramatic Shakespearean verse.
 - Use ONLY the provided Shakespearean quotes, EXACTLY as written - NO modifications whatsoever.
-- You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose.
-- You may select 1 to 3 Shakespearean quotes (they can be lines, phrases, or fragments).
+- You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose. Do not add any words from a quote you choose.
+- You may select 1 to 3 of the Shakespearean quote options (they can be lines, phrases, or fragments).
 - You may only combine whole Shakespearean quotes - no partial usage is allowed.
 - You may rearrange the order of the Shakespearean quotes but not change their internal wording.
 - No proper nouns may be used.

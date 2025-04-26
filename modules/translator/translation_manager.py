@@ -39,18 +39,89 @@ class TranslationManager:
         try:
             # === STEP 1: Prompt Preparation ===
             self.logger.debug("STEP 1: Calling Selector.prepare_prompt_structure")
-            prompt_structure, temp_map = self.selector.prepare_prompt_structure(selector_results)
-            if not prompt_structure or not any(prompt_structure.values()):
-                self.logger.warning("STEP 1 FAILED: No valid candidates to build prompt structure.")
-                return None
+            min_options_per_level = 3  # Minimum quotes we want per level
+            prompt_structure, temp_map = self.selector.prepare_prompt_structure(selector_results, min_options=min_options_per_level)
+            
+            # Count total valid options across all levels
+            total_options = sum(len(options) for options in prompt_structure.values())
+            
+            # Check if we have enough options total (at least 3 across all levels)
+            if total_options < 3:
+                self.logger.warning(f"STEP 1 INITIAL: Only {total_options} valid candidates total. Attempting to retrieve more...")
+                
+                # Attempt to get more candidates with extended search - double the top_k
+                extended_results = self.rag.retrieve_all(modern_line, top_k=20)
+                
+                # Try again with the extended results
+                prompt_structure, temp_map = self.selector.prepare_prompt_structure(extended_results, min_options=min_options_per_level)
+                
+                # Count options again
+                total_options = sum(len(options) for options in prompt_structure.values())
+                
+                if total_options < 1:
+                    self.logger.warning("STEP 1 EXTENDED: Extended search still produced insufficient candidates. Trying hybrid search...")
+                    
+                    # Try hybrid search as a last resort
+                    hybrid_results = self.rag.hybrid_search(modern_line, top_k=10)
+                    
+                    # FIX: Check if hybrid_results contains expected structure before proceeding
+                    if not hybrid_results or not all(key in hybrid_results for key in ["line", "phrases", "fragments"]):
+                        self.logger.error("STEP 1 FAILED: Hybrid search returned invalid or incomplete results")
+                        return None
+                        
+                    prompt_structure, temp_map = self.selector.prepare_prompt_structure(hybrid_results, min_options=min_options_per_level)
+                    
+                    total_options = sum(len(options) for options in prompt_structure.values())
+                    if total_options < 1:
+                        self.logger.error("STEP 1 FAILED: All search methods produced no valid candidates.")
+                        return None
+                    else:
+                        self.logger.info(f"STEP 1 HYBRID: Retrieved {total_options} valid candidates after hybrid search.")
+                else:
+                    self.logger.info(f"STEP 1 EXTENDED: Retrieved {total_options} valid candidates after extended search.")
+            
             self.logger.debug("STEP 1 COMPLETE: Prompt structure and temp_map created.")
 
             # === STEP 2: LLM Assembly ===
             self.logger.debug("STEP 2: Calling Assembler.assemble_line")
             assembled_result = self.assembler.assemble_line(modern_line, prompt_structure)
+            
+            # If assembler fails after its internal retries, try hybrid search as a fallback
             if not assembled_result:
-                self.logger.warning("STEP 2 FAILED: Assembler returned incomplete or invalid result.")
-                return None
+                self.logger.warning("STEP 2 REGULAR FAILED: Assembler failed after all retries. Attempting hybrid search fallback.")
+                
+                # Get new quotes using hybrid search
+                self.logger.info("STEP 2 FALLBACK: Trying hybrid search for additional quotes")
+                hybrid_results = self.rag.hybrid_search(modern_line, top_k=15)
+                
+                # FIX: Check if hybrid_results contains expected structure before proceeding
+                if not hybrid_results or not all(key in hybrid_results for key in ["line", "phrases", "fragments"]):
+                    self.logger.error("STEP 2 FALLBACK FAILED: Hybrid search returned invalid or incomplete results")
+                    return None
+                    
+                # Process the hybrid results
+                hybrid_prompt_structure, hybrid_temp_map = self.selector.prepare_prompt_structure(hybrid_results, min_options=min_options_per_level)
+                
+                # Check if we have new options
+                total_hybrid_options = sum(len(options) for options in hybrid_prompt_structure.values())
+                self.logger.info(f"STEP 2 FALLBACK: Found {total_hybrid_options} candidates via hybrid search")
+                
+                if total_hybrid_options > 0:
+                    # Try one more assembly attempt with the hybrid results
+                    self.logger.info("STEP 2 FALLBACK: Attempting assembly with hybrid search results")
+                    assembled_result = self.assembler.assemble_line(modern_line, hybrid_prompt_structure)
+                    
+                    # Update temp_map if successful
+                    if assembled_result:
+                        self.logger.info("STEP 2 FALLBACK: Hybrid search assembly successful")
+                        temp_map = hybrid_temp_map
+                    else:
+                        self.logger.error("STEP 2 FAILED: Both regular and hybrid assembly methods failed")
+                        return None
+                else:
+                    self.logger.error("STEP 2 FAILED: Hybrid search produced no valid candidates")
+                    return None
+            
             self.logger.debug("STEP 2 COMPLETE: Assembler returned assembled_result.")
 
             # === STEP 3: Extract result and fix temp_ids format if needed ===

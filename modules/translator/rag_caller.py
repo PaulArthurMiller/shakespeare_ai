@@ -115,3 +115,33 @@ class RagCaller:
         self.logger.info(f"Extracted {len(candidates)} candidates from {level} level")
         return candidates
 
+    def hybrid_search(self, modern_line: str, top_k: int = 10) -> Dict[str, List[CandidateQuote]]:
+        """
+        Perform a hybrid search combining vector embeddings with keyword matching.
+        
+        Args:
+            modern_line: The modern text line to find Shakespearean quotes for
+            top_k: Number of results to return per search method
+            
+        Returns:
+            Dictionary with candidate quotes from different levels
+        """
+        self.logger.info(f"Performing hybrid search for: '{modern_line}'")
+        
+        # Call the search engine's hybrid search method
+        results = self.search_engine.hybrid_search(modern_line, top_k)
+        
+        # Process the results into CandidateQuote objects, similar to retrieve_all
+        return {
+            "line": self._extract_candidates([results["search_chunks"]["line"]], "line"),
+            "phrases": [
+                candidate
+                for group in results["search_chunks"]["phrases"]
+                for candidate in self._extract_candidates([group], "phrases")
+            ],
+            "fragments": [
+                candidate
+                for group in results["search_chunks"]["fragments"]
+                for candidate in self._extract_candidates([group], "fragments")
+            ],
+        }
