@@ -44,7 +44,7 @@ class Assembler:
         else:
             self.openai_client = OpenAI()
 
-    def assemble_line(self, modern_line: str, prompt_data: Dict[str, List[Dict[str, Any]]], max_retries: int = 2) -> Optional[Dict[str, Any]]:
+    def assemble_line(self, modern_line: str, prompt_data: Dict[str, List[Dict[str, Any]]], max_retries: int = 1) -> Optional[Dict[str, Any]]:
         """Main method to assemble a translated line using only the provided quotes."""
         self.logger.info("Beginning line assembly")
         self.logger.debug(f"Modern line: {modern_line}")
@@ -56,21 +56,13 @@ class Assembler:
 
         while retries <= max_retries:
             if retries > 0:
-                # On retry, modify the prompt data
-                if retries == 1:
-                    # First retry: shuffle the order of quotes
-                    self.logger.info("First retry: Shuffling quote options")
-                    for form in working_prompt_data:
-                        import random
-                        random.shuffle(working_prompt_data[form])
-                elif retries == 2:
-                    # Second retry: shuffle again and potentially remove one option per category
-                    self.logger.info("Second retry: Shuffling and potentially removing quotes")
-                    for form in working_prompt_data:
-                        if len(working_prompt_data[form]) > 1:
-                            working_prompt_data[form].pop()  # Remove one option
-                        import random
-                        random.shuffle(working_prompt_data[form])
+                # Skip the "just shuffle" step and go straight to shuffle + remove quotes
+                self.logger.info("Retry: Shuffling and potentially removing quotes")
+                for form in working_prompt_data:
+                    if len(working_prompt_data[form]) > 1:
+                        working_prompt_data[form].pop()  # Remove one option
+                    import random
+                    random.shuffle(working_prompt_data[form])
             
             # Generate the prompt and get LLM response
             prompt = self._build_prompt(modern_line, working_prompt_data)
@@ -94,7 +86,7 @@ class Assembler:
             self.logger.warning(f"Mini-validation failed on attempt {retries + 1}")
             retries += 1
 
-        self.logger.error("Assembler failed after max retries")
+        self.logger.error(f"Assembler failed after {max_retries} retries")
         return None
 
     def _build_prompt(self, modern_line: str, quote_options: Dict[str, List[Dict[str, Any]]]) -> str:

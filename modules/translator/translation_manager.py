@@ -30,15 +30,26 @@ class TranslationManager:
         self.logger.info(f"Starting translation session: {self.translation_id}")
         self.used_map.load(self.translation_id)
 
-    def translate_line(self, modern_line: str, selector_results: Dict[str, List[CandidateQuote]]) -> Optional[Dict[str, Any]]:
+    def translate_line(self, modern_line: str, selector_results: Dict[str, List[CandidateQuote]], use_hybrid_search: bool = False) -> Optional[Dict[str, Any]]:
         if not self.translation_id:
             raise RuntimeError("Translation session not started. Call start_translation_session().")
 
-        self.logger.info(f"Translating line: {modern_line}")
+        search_type = "HYBRID" if use_hybrid_search else "STANDARD"
+        self.logger.info(f"Translating line using {search_type} search: {modern_line}")
+        
+        # Track if results are from hybrid search
+        is_hybrid_results = use_hybrid_search  
 
         try:
+            # If we're using hybrid search and weren't given hybrid results, get them now
+            if use_hybrid_search and not is_hybrid_results:
+                self.logger.info(f"[HYBRID] Performing initial hybrid search for: '{modern_line}'")
+                selector_results = self.rag.hybrid_search(modern_line, top_k=15)
+                is_hybrid_results = True
+                self.logger.info(f"[HYBRID] Hybrid search returned results: {sum(len(candidates) for form, candidates in selector_results.items())} total candidates")
+
             # === STEP 1: Prompt Preparation ===
-            self.logger.debug("STEP 1: Calling Selector.prepare_prompt_structure")
+            self.logger.debug(f"[{search_type}] STEP 1: Calling Selector.prepare_prompt_structure")
             min_options_per_level = 3  # Minimum quotes we want per level
             prompt_structure, temp_map = self.selector.prepare_prompt_structure(selector_results, min_options=min_options_per_level)
             
@@ -47,10 +58,15 @@ class TranslationManager:
             
             # Check if we have enough options total (at least 3 across all levels)
             if total_options < 3:
-                self.logger.warning(f"STEP 1 INITIAL: Only {total_options} valid candidates total. Attempting to retrieve more...")
+                self.logger.warning(f"[{search_type}] STEP 1 INITIAL: Only {total_options} valid candidates total. Attempting to retrieve more...")
                 
                 # Attempt to get more candidates with extended search - double the top_k
-                extended_results = self.rag.retrieve_all(modern_line, top_k=20)
+                if use_hybrid_search:
+                    extended_results = self.rag.hybrid_search(modern_line, top_k=25)
+                    # No need to set a flag on extended_results
+                    self.logger.info(f"[HYBRID] Extended hybrid search complete")
+                else:
+                    extended_results = self.rag.retrieve_all(modern_line, top_k=20)
                 
                 # Try again with the extended results
                 prompt_structure, temp_map = self.selector.prepare_prompt_structure(extended_results, min_options=min_options_per_level)
@@ -59,70 +75,42 @@ class TranslationManager:
                 total_options = sum(len(options) for options in prompt_structure.values())
                 
                 if total_options < 1:
-                    self.logger.warning("STEP 1 EXTENDED: Extended search still produced insufficient candidates. Trying hybrid search...")
-                    
-                    # Try hybrid search as a last resort
-                    hybrid_results = self.rag.hybrid_search(modern_line, top_k=10)
-                    
-                    # FIX: Check if hybrid_results contains expected structure before proceeding
-                    if not hybrid_results or not all(key in hybrid_results for key in ["line", "phrases", "fragments"]):
-                        self.logger.error("STEP 1 FAILED: Hybrid search returned invalid or incomplete results")
-                        return None
-                        
-                    prompt_structure, temp_map = self.selector.prepare_prompt_structure(hybrid_results, min_options=min_options_per_level)
-                    
-                    total_options = sum(len(options) for options in prompt_structure.values())
-                    if total_options < 1:
-                        self.logger.error("STEP 1 FAILED: All search methods produced no valid candidates.")
-                        return None
-                    else:
-                        self.logger.info(f"STEP 1 HYBRID: Retrieved {total_options} valid candidates after hybrid search.")
+                    self.logger.error(f"[{search_type}] STEP 1 FAILED: Search produced insufficient candidates.")
+                    # Final failsafe: Use top line quote directly if available
+                    if selector_results.get("line") and len(selector_results["line"]) > 0:
+                        self.logger.info(f"[{search_type}] FAILSAFE: Using top line quote directly")
+                        top_line = selector_results["line"][0]
+                        return self._create_single_quote_result(top_line, modern_line)
+                    return None
                 else:
-                    self.logger.info(f"STEP 1 EXTENDED: Retrieved {total_options} valid candidates after extended search.")
+                    self.logger.info(f"[{search_type}] STEP 1 EXTENDED: Retrieved {total_options} valid candidates after extended search.")
             
-            self.logger.debug("STEP 1 COMPLETE: Prompt structure and temp_map created.")
+            self.logger.debug(f"[{search_type}] STEP 1 COMPLETE: Prompt structure created with {total_options} total options")
 
             # === STEP 2: LLM Assembly ===
-            self.logger.debug("STEP 2: Calling Assembler.assemble_line")
-            assembled_result = self.assembler.assemble_line(modern_line, prompt_structure)
+            # Adjust assembly retry logic based on search type
+            self.logger.debug(f"[{search_type}] STEP 2: Calling Assembler.assemble_line")
             
-            # If assembler fails after its internal retries, try hybrid search as a fallback
+            # For hybrid search, we only try once; for standard search we allow retries
+            max_retries = 0 if use_hybrid_search else 1  # 0 means one try, no retries
+            assembled_result = self.assembler.assemble_line(modern_line, prompt_structure, max_retries=max_retries)
+            
             if not assembled_result:
-                self.logger.warning("STEP 2 REGULAR FAILED: Assembler failed after all retries. Attempting hybrid search fallback.")
+                self.logger.warning(f"[{search_type}] STEP 2 FAILED: Assembler failed after {max_retries + 1} attempts.")
                 
-                # Get new quotes using hybrid search
-                self.logger.info("STEP 2 FALLBACK: Trying hybrid search for additional quotes")
-                hybrid_results = self.rag.hybrid_search(modern_line, top_k=15)
-                
-                # FIX: Check if hybrid_results contains expected structure before proceeding
-                if not hybrid_results or not all(key in hybrid_results for key in ["line", "phrases", "fragments"]):
-                    self.logger.error("STEP 2 FALLBACK FAILED: Hybrid search returned invalid or incomplete results")
-                    return None
-                    
-                # Process the hybrid results
-                hybrid_prompt_structure, hybrid_temp_map = self.selector.prepare_prompt_structure(hybrid_results, min_options=min_options_per_level)
-                
-                # Check if we have new options
-                total_hybrid_options = sum(len(options) for options in hybrid_prompt_structure.values())
-                self.logger.info(f"STEP 2 FALLBACK: Found {total_hybrid_options} candidates via hybrid search")
-                
-                if total_hybrid_options > 0:
-                    # Try one more assembly attempt with the hybrid results
-                    self.logger.info("STEP 2 FALLBACK: Attempting assembly with hybrid search results")
-                    assembled_result = self.assembler.assemble_line(modern_line, hybrid_prompt_structure)
-                    
-                    # Update temp_map if successful
-                    if assembled_result:
-                        self.logger.info("STEP 2 FALLBACK: Hybrid search assembly successful")
-                        temp_map = hybrid_temp_map
-                    else:
-                        self.logger.error("STEP 2 FAILED: Both regular and hybrid assembly methods failed")
-                        return None
+                # If standard search failed, try hybrid as fallback
+                if not use_hybrid_search:
+                    self.logger.info("[STANDARD] FALLBACK: Attempting hybrid search")
+                    return self.translate_line(modern_line, {}, use_hybrid_search=True)
                 else:
-                    self.logger.error("STEP 2 FAILED: Hybrid search produced no valid candidates")
+                    # Hybrid search already failed, use top line quote as failsafe
+                    if selector_results.get("line") and len(selector_results["line"]) > 0:
+                        self.logger.info("[HYBRID] FAILSAFE: Using top line quote directly")
+                        top_line = selector_results["line"][0]
+                        return self._create_single_quote_result(top_line, modern_line)
                     return None
             
-            self.logger.debug("STEP 2 COMPLETE: Assembler returned assembled_result.")
+            self.logger.info(f"[{search_type}] STEP 2 COMPLETE: Assembler returned result successfully")
 
             # === STEP 3: Extract result and fix temp_ids format if needed ===
             assembled_text = assembled_result.get("text", "").strip()
@@ -244,14 +232,62 @@ class TranslationManager:
             })
             return None
 
-    def translate_group(self, modern_lines: List[str]) -> List[Dict[str, Any]]:
+    def _create_single_quote_result(self, quote: CandidateQuote, modern_line: str) -> Dict[str, Any]:
+        """Create a result using a single quote directly."""
+        self.logger.info(f"Creating result from single quote: '{quote.text}'")
+        
+        # Mark the quote as used in the used_map
+        title = quote.reference.get('title', '')
+        act = quote.reference.get('act', '')
+        scene = quote.reference.get('scene', '')
+        line = quote.reference.get('line', '')
+        ref_key = f"{title}|{act if act is not None else 'NULL'}|{scene if scene is not None else 'NULL'}|{line}"
+        
+        word_index_str = quote.reference.get("word_index", "")
+        if word_index_str and isinstance(word_index_str, str):
+            try:
+                if "," in word_index_str:
+                    start, end = map(int, word_index_str.split(","))
+                    word_indices = list(range(start, end + 1))
+                else:
+                    word_indices = [int(word_index_str.strip())]
+                
+                self.used_map.mark_used(ref_key, word_indices)
+                self.used_map.save()
+            except (ValueError, IndexError) as e:
+                self.logger.warning(f"Invalid word_index format in failsafe: {word_index_str} - {e}")
+        
+        # Create reference information
+        reference = {
+            "temp_id": "failsafe_1",
+            "title": quote.reference.get("title", "Unknown"),
+            "act": quote.reference.get("act", "Unknown"),
+            "scene": quote.reference.get("scene", "Unknown"),
+            "line": quote.reference.get("line", "Unknown"),
+            "word_index": quote.reference.get("word_index", "0,0")
+        }
+        
+        return {
+            "text": quote.text,
+            "temp_ids": ["failsafe_1"],
+            "references": [reference],
+            "original_modern_line": modern_line,
+            "is_failsafe": True  # Flag to indicate this was a failsafe result
+        }
+
+    def translate_group(self, modern_lines: List[str], use_hybrid_search: bool = False) -> List[Dict[str, Any]]:
         """Translate a group of modern lines."""
-        self.logger.info(f"Translating group of {len(modern_lines)} lines")
+        self.logger.info(f"Translating group of {len(modern_lines)} lines with hybrid_search={use_hybrid_search}")
         results = []
         
         for line in modern_lines:
-            selector_results = self.rag.retrieve_all(line)
-            result = self.translate_line(line, selector_results)
+            if use_hybrid_search:
+                selector_results = self.rag.hybrid_search(line)
+                # Don't add _is_hybrid flag here
+            else:
+                selector_results = self.rag.retrieve_all(line)
+            
+            result = self.translate_line(line, selector_results, use_hybrid_search=use_hybrid_search)
             if result is not None:
                 results.append(result)
         
