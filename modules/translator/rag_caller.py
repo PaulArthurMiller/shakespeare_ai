@@ -118,30 +118,71 @@ class RagCaller:
     def hybrid_search(self, modern_line: str, top_k: int = 10) -> Dict[str, List[CandidateQuote]]:
         """
         Perform a hybrid search combining vector embeddings with keyword matching.
-        
-        Args:
-            modern_line: The modern text line to find Shakespearean quotes for
-            top_k: Number of results to return per search method
-            
-        Returns:
-            Dictionary with candidate quotes from different levels
         """
         self.logger.info(f"Performing hybrid search for: '{modern_line}'")
         
-        # Call the search engine's hybrid search method
-        results = self.search_engine.hybrid_search(modern_line, top_k)
-        
-        # Process the results into CandidateQuote objects, similar to retrieve_all
-        return {
-            "line": self._extract_candidates([results["search_chunks"]["line"]], "line"),
-            "phrases": [
-                candidate
-                for group in results["search_chunks"]["phrases"]
-                for candidate in self._extract_candidates([group], "phrases")
-            ],
-            "fragments": [
-                candidate
-                for group in results["search_chunks"]["fragments"]
-                for candidate in self._extract_candidates([group], "fragments")
-            ],
-        }
+        try:
+            # Call the search engine's hybrid search method
+            results = self.search_engine.hybrid_search(modern_line, top_k)
+            
+            # Log the structure of results for debugging
+            self.logger.debug(f"Raw hybrid search results keys: {list(results.keys())}")
+            if "search_chunks" in results:
+                self.logger.debug(f"Search chunks keys: {list(results.get('search_chunks', {}).keys())}")
+            
+            # Ensure we have a valid results structure before proceeding
+            if not results or "search_chunks" not in results:
+                self.logger.error("Invalid results structure from hybrid search")
+                return {"line": [], "phrases": [], "fragments": []}
+            
+            search_chunks = results["search_chunks"]
+            
+            # Process each level, ensuring we always have lists
+            processed_results = {
+                "line": self._extract_candidates([search_chunks.get("line", {})], "line"),
+                "phrases": [],
+                "fragments": []
+            }
+            
+            # Process phrases - handle both list and non-list formats
+            phrases_chunks = search_chunks.get("phrases", [])
+            if phrases_chunks:
+                if isinstance(phrases_chunks, list):
+                    for group in phrases_chunks:
+                        candidates = self._extract_candidates([group], "phrases")
+                        processed_results["phrases"].extend(candidates)
+                else:
+                    # If it's not a list, try processing it directly
+                    candidates = self._extract_candidates([phrases_chunks], "phrases")
+                    processed_results["phrases"].extend(candidates)
+            
+            # Process fragments - handle both list and non-list formats
+            fragments_chunks = search_chunks.get("fragments", [])
+            if fragments_chunks:
+                if isinstance(fragments_chunks, list):
+                    for group in fragments_chunks:
+                        candidates = self._extract_candidates([group], "fragments")
+                        processed_results["fragments"].extend(candidates)
+                else:
+                    # If it's not a list, try processing it directly
+                    candidates = self._extract_candidates([fragments_chunks], "fragments")
+                    processed_results["fragments"].extend(candidates)
+            
+            # Log the processed results for debugging
+            total_candidates = (
+                len(processed_results["line"]) +
+                len(processed_results["phrases"]) +
+                len(processed_results["fragments"])
+            )
+            
+            self.logger.info(f"Hybrid search processed results: {len(processed_results['line'])} lines, "
+                            f"{len(processed_results['phrases'])} phrases, "
+                            f"{len(processed_results['fragments'])} fragments "
+                            f"(total: {total_candidates})")
+            
+            return processed_results
+            
+        except Exception as e:
+            self.logger.error(f"Error in hybrid search: {e}")
+            # Return empty results as fallback
+            return {"line": [], "phrases": [], "fragments": []}

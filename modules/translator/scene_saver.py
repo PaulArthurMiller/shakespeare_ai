@@ -4,11 +4,17 @@ import os
 import json
 from typing import List, Dict, Any, Optional
 from modules.utils.logger import CustomLogger
+from modules.translator.config import get_output_dir
 
 class SceneSaver:
-    def __init__(self, output_dir: str = "outputs/translated_scenes"):
+    def __init__(self, translation_id: Optional[str] = None, base_output_dir: str = "outputs/translated_scenes"):
         self.logger = CustomLogger("SceneSaver")
-        self.output_dir = output_dir
+        
+        if translation_id:
+            self.output_dir = get_output_dir(translation_id)
+        else:
+            self.output_dir = base_output_dir
+            
         os.makedirs(self.output_dir, exist_ok=True)
 
     def save_scene(
@@ -25,7 +31,9 @@ class SceneSaver:
         - translated_lines is a list of line dictionaries with 'text', 'references', etc.
         - original_lines is an optional list of the original modern lines (if available)
         """
-        scene_id = f"act_{act.lower()}_scene_{scene}"
+        # Remove any underscores in the act before adding it to the template
+        clean_act = act.lower().strip('_')
+        scene_id = f"act_{clean_act}_scene_{scene}"
         json_path = os.path.join(self.output_dir, f"{scene_id}.json")
         md_path = os.path.join(self.output_dir, f"{scene_id}.md")
 

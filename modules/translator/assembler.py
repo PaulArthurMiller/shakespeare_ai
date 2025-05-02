@@ -12,14 +12,22 @@ from anthropic.types import TextBlock
 
 
 class Assembler:
-    def __init__(self, config_path: str = "modules/playwright/config.py"):
+    def __init__(
+        self, 
+        config_path: str = "modules/playwright/config.py",
+        model_provider: Optional[str] = None,
+        model_name: Optional[str] = None,
+        temperature: Optional[float] = None
+    ):
         self.logger = CustomLogger("Assembler")
         self.logger.info("Initializing Assembler")
 
         self.config = self._load_config(config_path)
-        self.model_provider = self.config.get("model_provider", "openai")
-        self.model_name = self.config.get("model_name", "gpt-4o")
-        self.temperature = self.config.get("temperature", 0.7)
+        
+        # Override config values with provided parameters if specified
+        self.model_provider = model_provider or self.config.get("model_provider", "openai")
+        self.model_name = model_name or self.config.get("model_name", "gpt-4o")
+        self.temperature = temperature or self.config.get("temperature", 0.7)
 
         self.openai_client: Optional[OpenAI] = None
         self.anthropic_client: Optional[Anthropic] = None
@@ -91,39 +99,65 @@ class Assembler:
 
     def _build_prompt(self, modern_line: str, quote_options: Dict[str, List[Dict[str, Any]]]) -> str:
         quote_list = []
+        
+        # Extract target syllables from the metadata if it exists
+        target_syllables = None
+        if "metadata" in quote_options and quote_options["metadata"] and isinstance(quote_options["metadata"][0], dict):
+            target_syllables = quote_options["metadata"][0].get("target_syllables")
+        
+        # Generate the quote options list
         for form, options in quote_options.items():
+            # Skip metadata - it's not a quote option
+            if form == "metadata":
+                continue
+                
             for opt in options:
                 temp_id = opt.get("temp_id")
                 text = opt.get("text", "").strip()
                 score = opt.get("score", None)
+                # Include syllable count in the quote information if available
+                syllables = opt.get("syllables", None)
+                
                 line = f"[{form.upper()}] {temp_id}: \"{text}\""
                 if score is not None:
                     line += f" (score: {score:.4f})"
+                if syllables is not None:
+                    line += f" (syllables: {syllables})"
+                
                 quote_list.append(line)
 
         quotes_str = "\n".join(quote_list)
+        
+        # Create the syllable instruction if we have target syllables
+        syllable_instruction = ""
+        if target_syllables:
+            syllable_instruction = f"""
+    IMPORTANT: The modern line has approximately {target_syllables} syllables. Try to assemble a line with a similar syllable count (within 25% if possible).
+    """
 
         return f"""
-You are a playwright assistant generating Shakespeare-style dialog using a modern play line and selected source quotes. You use quotes from Shakespeare as puzzle pieces, fit together to match as closely as possible the modern play line.
+    You are a playwright assistant generating Shakespeare-style dialog using a modern play line and selected source quotes. You use quotes from Shakespeare as puzzle pieces, fit together to match as closely as possible the modern play line.
 
-Your job:
-- Translate the modern English line into dramatic Shakespearean verse.
-- Use ONLY the provided Shakespearean quotes, EXACTLY as written - NO modifications whatsoever.
-- You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose. Do not add any words from a quote you choose.
-- You may select 1 to 3 of the Shakespearean quote options (they can be lines, phrases, or fragments).
-- You may only combine whole Shakespearean quotes - no partial usage is allowed.
-- You may rearrange the order of the Shakespearean quotes but not change their internal wording.
-- No proper nouns may be used.
-- Return ONLY the final assembled line, without listing the temp_ids or any other information.
+    Your job:
+    - Translate the modern English line into dramatic Shakespearean verse.
+    - Use ONLY the provided Shakespearean quotes, EXACTLY as written - NO modifications whatsoever.
+    - You MUST use the entire Shakespearean quote as provided - do not omit any words from a quote you choose. Do not add any words from a quote you choose.
+    - You may select 1 to 3 of the Shakespearean quote options (they can be lines, phrases, or fragments).
+    - When combining Shakespearean quote options, try to match the number of syllables listed for those quotes to the number of syllables in the modern line.
+    - You may only combine whole Shakespearean quotes - no partial usage is allowed.
+    - You may rearrange the order of the Shakespearean quotes but not change their internal wording.
+    - No proper nouns may be used.
+    - Return ONLY the final assembled line, without listing the temp_ids or any other information.
+    {syllable_instruction}
 
-Modern play line:
-"{modern_line}"
+    Modern play line:
+    "{modern_line}"
 
-Here are your options:
-{quotes_str}
+    Here are your options:
+    {quotes_str}
 
-Your response should contain ONLY the assembled text, with no additional commentary.
-""".strip()
+    Your response should contain ONLY the assembled text, with no additional commentary.
+    """.strip()
 
     def _call_model(self, prompt: str) -> str:
         if self.anthropic_client:

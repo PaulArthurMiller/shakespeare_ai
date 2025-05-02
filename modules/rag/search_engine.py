@@ -67,6 +67,7 @@ class ShakespeareSearchEngine:
         """
         self.logger.info(f"Performing hybrid search for: '{modern_line}'")
         
+        # Initialize a result structure
         result = {
             "original_line": modern_line,
             "search_method": "hybrid",
@@ -77,67 +78,99 @@ class ShakespeareSearchEngine:
             }
         }
         
-        # First get regular vector search results
-        vector_results = self.search_line(modern_line, top_k)
-        
-        # Extract the vector search results for each level
-        for level in ["line", "phrases", "fragments"]:
-            # Copy vector search results to our result dict
-            if level in vector_results["search_chunks"]:
-                result["search_chunks"][level] = vector_results["search_chunks"][level]
-        
-        # Now add keyword-based search results
-        import re
-        from collections import Counter
-        
-        # Extract significant words from the modern line
-        words = re.findall(r'\b\w{3,}\b', modern_line.lower())
-        
-        # Define stopwords to filter out common words
-        stopwords = {
-            'the', 'and', 'that', 'have', 'for', 'not', 'with', 'you', 'this', 'but',
-            'his', 'from', 'they', 'will', 'would', 'what', 'all', 'were', 'when',
-            'there', 'their', 'your', 'been', 'one', 'who', 'very', 'had', 'was', 'are',
-            'she', 'her', 'him', 'has', 'our', 'them', 'its', 'about', 'can', 'out'
-        }
-        
-        # Filter out stopwords and get the most relevant keywords
-        keywords = [w for w in words if w not in stopwords]
-        
-        # Take the 3 most common keywords (if available)
-        if keywords:
-            keyword_freq = Counter(keywords)
-            top_keywords = [kw for kw, _ in keyword_freq.most_common(3)]
+        try:
+            # First get regular vector search results
+            vector_results = self.search_line(modern_line, top_k)
             
-            self.logger.info(f"Extracted keywords for search: {top_keywords}")
-            
-            # For each keyword, search each collection
-            for keyword in top_keywords:
-                keyword_embedding = self.embedder.embed_texts([keyword])[0]
+            # Extract the vector search results for each level - with error handling
+            if "search_chunks" in vector_results:
+                search_chunks = vector_results["search_chunks"]
                 
-                for level in ["line", "phrases", "fragments"]:
-                    collection = self.vector_stores[level].collection
+                # Handle line results
+                if "line" in search_chunks:
+                    result["search_chunks"]["line"] = search_chunks["line"]
+                
+                # Handle phrases results
+                if "phrases" in search_chunks and isinstance(search_chunks["phrases"], list):
+                    result["search_chunks"]["phrases"] = search_chunks["phrases"]
+                
+                # Handle fragments results
+                if "fragments" in search_chunks and isinstance(search_chunks["fragments"], list):
+                    result["search_chunks"]["fragments"] = search_chunks["fragments"]
+            
+            # Now add keyword-based search results
+            try:
+                import re
+                from collections import Counter
+                
+                # Extract significant words from the modern line
+                words = re.findall(r'\b\w{3,}\b', modern_line.lower())
+                
+                # Define stopwords to filter out common words
+                stopwords = {
+                    'the', 'and', 'that', 'have', 'for', 'not', 'with', 'you', 'this', 'but',
+                    'his', 'from', 'they', 'will', 'would', 'what', 'all', 'were', 'when',
+                    'there', 'their', 'your', 'been', 'one', 'who', 'very', 'had', 'was', 'are',
+                    'she', 'her', 'him', 'has', 'our', 'them', 'its', 'about', 'can', 'out'
+                }
+                
+                # Filter out stopwords and get the most relevant keywords
+                keywords = [w for w in words if w not in stopwords]
+                
+                # Take the 3 most common keywords (if available)
+                if keywords:
+                    keyword_freq = Counter(keywords)
+                    top_keywords = [kw for kw, _ in keyword_freq.most_common(3)]
                     
-                    # Search using the keyword embedding
-                    keyword_results = collection.query(
-                        query_embeddings=[keyword_embedding],
-                        n_results=3,  # Fewer per keyword to avoid overwhelming
-                        include=["documents", "metadatas", "distances"]
-                    )
+                    self.logger.info(f"Extracted keywords for search: {top_keywords}")
                     
-                    # Add these results to our result dictionary
-                    if level == "line":
-                        # Line results are directly added
-                        result["search_chunks"][level] = keyword_results
-                    else:
-                        # Phrases and fragments results are appended
-                        result["search_chunks"][level].append(keyword_results)
-        
-        # Log the number of results we found
-        total_line_results = len(result["search_chunks"]["line"].get("documents", []))
-        total_phrase_results = sum(len(r.get("documents", [])) for r in result["search_chunks"]["phrases"])
-        total_fragment_results = sum(len(r.get("documents", [])) for r in result["search_chunks"]["fragments"])
-        
-        self.logger.info(f"Hybrid search results: {total_line_results} lines, {total_phrase_results} phrases, {total_fragment_results} fragments")
-        
-        return result
+                    # For each keyword, search each collection
+                    for keyword in top_keywords:
+                        try:
+                            keyword_embedding = self.embedder.embed_texts([keyword])[0]
+                            
+                            for level in ["line", "phrases", "fragments"]:
+                                try:
+                                    collection = self.vector_stores[level].collection
+                                    
+                                    # Search using the keyword embedding
+                                    keyword_results = collection.query(
+                                        query_embeddings=[keyword_embedding],
+                                        n_results=3,  # Fewer per keyword
+                                        include=["documents", "metadatas", "distances"]
+                                    )
+                                    
+                                    # Add these results to our result dictionary
+                                    if level == "line":
+                                        # Line results can be directly merged
+                                        result["search_chunks"][level] = keyword_results
+                                    else:
+                                        # Phrases and fragments results must be appended
+                                        result["search_chunks"][level].append(keyword_results)
+                                except Exception as e:
+                                    self.logger.warning(f"Error searching {level} for keyword '{keyword}': {e}")
+                        except Exception as e:
+                            self.logger.warning(f"Error processing keyword '{keyword}': {e}")
+                
+            except Exception as e:
+                self.logger.warning(f"Error in keyword-based search: {e}")
+            
+            # Check if we found any results
+            total_line_results = len(result["search_chunks"]["line"].get("documents", []) 
+                                if isinstance(result["search_chunks"]["line"], dict) else [])
+            total_phrase_results = sum(len(r.get("documents", [])) 
+                                    for r in result["search_chunks"]["phrases"] 
+                                    if isinstance(r, dict))
+            total_fragment_results = sum(len(r.get("documents", [])) 
+                                    for r in result["search_chunks"]["fragments"] 
+                                    if isinstance(r, dict))
+            
+            self.logger.info(f"Hybrid search results: {total_line_results} lines, "
+                            f"{total_phrase_results} phrases, "
+                            f"{total_fragment_results} fragments")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error in hybrid search: {e}")
+            return result

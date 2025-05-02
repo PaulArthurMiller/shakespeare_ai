@@ -1,0 +1,138 @@
+# ACT ii_
+
+## SCENE 2
+
+| Shakespearean Line | References | Modern Line |
+|-------------------|------------|-------------|
+| Small lights are soon blown out, huge fires abide, here burns my candle out; ay, here it dies. | THE RAPE OF LUCRECE (I.I.647), THE THIRD PART OF KING HENRY THE SIXTH (II.VI.1) | The candles burn like memories - bright, then gone. |
+| 'Tis full three months since I did see him last for his presence. | KING RICHARD THE SECOND (V.III.2), ALL'S WELL THAT ENDS WELL (IV.III.25) | Three weeks since I've seen him truly present, |
+| Both day and night did we keep company, break we off, share th'air with us | TWELFTH NIGHT; OR, WHAT YOU WILL (V.I.86), THE SECOND PART OF KING HENRY THE SIXTH (II.II.78), TROILUS AND CRESSIDA (II.III.143) | Though daily we break bread and share the air. |
+| He's follow'd both with body and with mind, | THE SECOND PART OF KING HENRY THE FOURTH (I.I.215) | His body moves among us while his mind |
+| is of a holy, cold, and still conversation, cold and starve, as cold as any stone. | THE TRAGEDY OF ANTONY AND CLEOPATRA (II.VI.144), CYMBELINE (I.V.130), THE LIFE OF KING HENRY THE FIFTH (II.III.18) | Communes with something colder than the stars. |
+| Such beastly shameless transformation | THE FIRST PART OF KING HENRY THE FOURTH (I.I.44) | What transformation grips him? Yesterday |
+| He call'd them untaught knaves, unmannerly, for want of husbandry in our rich fields | THE FIRST PART OF KING HENRY THE FOURTH (I.III.44), THE SECOND PART OF KING HENRY THE SIXTH (III.I.33), THE LIFE OF KING HENRY THE FIFTH (III.V.25) | He called the eastern fields "inefficient," |
+| All broken implements of a ruined house, as if it had been sow'd from low farms. | THE LIFE OF TIMON OF ATHENS (IV.II.18), CYMBELINE (IV.II.226), THE TRAGEDY OF KING LEAR (II.III.17) | As if the farmers there were broken tools. |
+| He cried upon it at the merest loss, In summer's drought so bemoaned his son. | THE TAMING OF THE SHREW (INDUCTION.I.19), THE TRAGEDY OF TITUS ANDRONICUS (III.I.19), THE THIRD PART OF KING HENRY THE SIXTH (II.V.110) | Last month he wept when drought took Miller's son. |
+| The precedent of pith and livelihood, but small to greater matters must give way. | VENUS AND ADONIS (I.I.26), THE TRAGEDY OF ANTONY AND CLEOPATRA (II.II.14) | Now ledgers matter more than livelihoods. |
+| And to enlighten thee gave eyes to blindness, hath received his sight | THE SONNETS (I.152.11), THE SECOND PART OF KING HENRY THE SIXTH (II.I.70) | The Djinn has given him a different sight - |
+| Sees and knows more, much more, than he unfolds. | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (III.III.273) | He sees through people rather than at them. |
+| His looks I fear, and his intents I doubt. | THE TRAGEDY OF ROMEO AND JULIET (V.III.44) | I fear the clarity he so admires |
+| Which, looked on as it is, is naught but shadows, like bright metal on a sullen ground | KING RICHARD THE SECOND (II.II.23), THE FIRST PART OF KING HENRY THE FOURTH (I.II.164) | Is nothing but the gleam of polished steel: |
+| Sharp enough, and ready to effect it to th world | KING HENRY THE EIGHTH (III.II.123), TROILUS AND CRESSIDA (IV.II.71), THE TWO NOBLE KINSMEN (I.I.52) | Sharp, cold, and ready to divide the world |
+| To trash for over-topping, new created to be discarded thence | THE TEMPEST (I.II.96), THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (IV.II.68) | Into the useful and discardable. |
+| And doth it give me such a sight as this? The precious treasure of his eyesight lost. | THE TRAGEDY OF ROMEO AND JULIET (IV.V.45), THE TRAGEDY OF ROMEO AND JULIET (I.I.224) | What does it profit him to gain such sight |
+| And are you yet to your own souls so blind for our hearts | KING RICHARD THE THIRD (I.IV.233), KING RICHARD THE THIRD (III.IV.10) | If blindness to our hearts becomes the cost? |
+| Up to the eastern tower with swelling ridges and mountainous error be too highly heaped | TROILUS AND CRESSIDA (I.II.4), THE RAPE OF LUCRECE (I.I.1439), THE TRAGEDY OF CORIOLANUS (II.III.103) | The eastern ridge calculations need revision. |
+| The other down, unseen, and full of water. Make flows and ebbs. | KING RICHARD THE SECOND (IV.I.190), THE TEMPEST (V.I.309) | The water flow projections underestimate |
+| By how much? nine score and seventeen! Fools! | KING RICHARD THE THIRD (II.II.127), MEASURE FOR MEASURE (IV.III.4), TROILUS AND CRESSIDA (II.I.101) | By seventeen percent. Seventeen! The fools. |
+| Your children's children quits it in your age. | KING RICHARD THE THIRD (V.III.268) | Their children's children would have paid for this. |
+| Edmund? What brings you here to court so hastily come you again into my chamber | THE TRAGEDY OF KING LEAR (I.I.18), THE LIFE AND DEATH OF KING JOHN (I.I.222), TROILUS AND CRESSIDA (IV.II.40) | Edgar! My boy! What brings you to my chambers |
+| At this dead hour? Now, what news? | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (I.I.74), THE SECOND PART OF KING HENRY THE FOURTH (IV.I.20) | At this unlikely hour? Some urgent news? |
+| There is no news, my lord, but that he writes; why hast thou not served thyself in to my table so many meals? | THE TWO GENTLEMEN OF VERONA (I.III.57), TROILUS AND CRESSIDA (II.III.31) | No news, just concern. You've missed three dinners, |
+| We'll wait upon your lordship which must decide it. | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (III.II.7), THE SECOND PART OF KING HENRY THE FOURTH (IV.I.186) | And the council waits on your decision |
+| What do they in the north upon our territories | KING RICHARD THE THIRD (IV.IV.501), THE TRAGEDY OF CORIOLANUS (IV.VI.96) | About the northern territories. |
+| That the great figure of a council frames Until the heavens | ALL'S WELL THAT ENDS WELL (III.I.14), KING RICHARD THE SECOND (I.I.23) | The council would debate until the mountains |
+| Tread on the sand. The sands are numbered that makes up my life; I stuck my choice upon her. | THE THIRD PART OF KING HENRY THE SIXTH (V.IV.30), THE THIRD PART OF KING HENRY THE SIXTH (I.IV.25), ALL'S WELL THAT ENDS WELL (V.III.53) | Crumble into sand. I've made my choice. |
+| We are enforced to farm our royal realm, but I will delve one yard below their mines. | KING RICHARD THE SECOND (I.IV.45), THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (III.IV.227) | The northern farms will be converted - mines |
+| Will serve the turn. The spirit that I have seen shall show itself more openly hereafter. | THE TAMING OF THE SHREW (IV.II.64), THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (II.II.549), THE SECOND PART OF KING HENRY THE FOURTH (IV.II.78) | Will serve us better. The Djinn has shown me |
+| A generation of still breeding thoughts, these seven years, from son to son, some four or five descents. | KING RICHARD THE SECOND (V.V.8), A WINTER'S TALE (IV.IV.632), ALL'S WELL THAT ENDS WELL (III.VII.27) | Projections spanning seven generations. |
+| Of six preceding ancestors, that gem? To yonder generation? | ALL'S WELL THAT ENDS WELL (V.III.216), MEASURE FOR MEASURE (IV.III.76) | Seven generations of what, exactly? |
+| The soil, the profit, and this kind of life, For who is living | AS YOU LIKE IT (II.IV.92), THE TRAGEDY OF ROMEO AND JULIET (III.II.70) | Of profit? Power? Or of people living? |
+| Come from the north that fed my country with your corn; Feeds beast as man. | THE SECOND PART OF KING HENRY THE FOURTH (II.IV.275), PERICLES, PRINCE OF TYRE (III.III.21), THE TRAGEDY OF ANTONY AND CLEOPATRA (I.I.39) | The northern farms feed thousands, Mortimer. |
+| Why, my boy? I understand you, sir; 'tis well begged. | THE TRAGEDY OF KING LEAR (I.IV.90), TWELFTH NIGHT; OR, WHAT YOU WILL (III.I.43) | My boy, I understand your hesitation. |
+| I did think so too in such a sort | THE TWO NOBLE KINSMEN (IV.III.50), TROILUS AND CRESSIDA (IV.I.27) | I too once thought in such constricted terms. |
+| Now I see the wide world | ALL'S WELL THAT ENDS WELL (III.VII.32), THE SONNETS (I.107.2) | But now I see the broader tapestry! |
+| As who should say "When I am dead and gone," when we have shuffled off this mortal coil, | THE FIRST PART OF HENRY THE SIXTH (I.IV.94), THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (III.I.73) | When I am gone - when we are both long gone - |
+| What now remains? A marble monument! | THE THIRD PART OF KING HENRY THE SIXTH (IV.III.62), MEASURE FOR MEASURE (V.I.254) | What will remain? Stone monuments? Or change |
+| That shook the aged forest with their echoes, and that hereafter ages may behold | THE TWO NOBLE KINSMEN (II.II.51), THE FIRST PART OF HENRY THE SIXTH (II.II.10) | That echoes through the centuries ahead? |
+| Hath given me this a greater gift for so good a gift | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (II.II.114), KING RICHARD THE THIRD (III.I.117), THE THIRD PART OF KING HENRY THE SIXTH (V.I.33) | The Djinn has given me a gift beyond measure: |
+| To grace this latter age with noble deeds, that men do lives after them. | THE FIRST PART OF KING HENRY THE FOURTH (V.I.93), THE TRAGEDY OF JULIUS CAESAR (III.II.74) | The chance to build a legacy that matters. |
+| In those foundations which I build upon, built on another man's ground? | A WINTER'S TALE (II.I.122), THE MERRY WIVES OF WINDSOR (II.II.158) | A legacy built on what foundation though? |
+| You speak o' th' people of future hopes | THE TRAGEDY OF CORIOLANUS (III.I.100), THE TWO GENTLEMEN OF VERONA (I.I.51) | You speak of future generations |
+| Therefore I scant this breathing courtesy And that no man might draw short breath today | THE MERCHANT OF VENICE (V.I.150), THE FIRST PART OF KING HENRY THE FOURTH (V.II.50) | While ignoring those who breathe today. |
+| Values itself so highly, that to her Truth may seem | MUCH ADO ABOUT NOTHING (III.I.55), THE PHOENIX AND THE TURTLE (I.I.62) | The clarity you prize so highly seems |
+| To a determined scope narrowly to thee with exact view | MEASURE FOR MEASURE (III.I.73), MUCH ADO ABOUT NOTHING (V.IV.115), TROILUS AND CRESSIDA (IV.V.255) | To sharpen focus while narrowing your view. |
+| That lack'd sight only, if it were the which is good in nothing but in sight! | A WINTER'S TALE (II.I.210), THE TAMING OF THE SHREW (I.I.63), PERICLES, PRINCE OF TYRE (I.I.123) | What good is perfect vision if it only |
+| He sees his love, and nothing else he sees, What here shall miss | VENUS AND ADONIS (I.I.287), THE TRAGEDY OF ROMEO AND JULIET (I.PROLOGUE.14) | Sees the distant horizon, missing what's |
+| This here before you? The people are abused, or they so suffering. | THE TRAGEDY OF CORIOLANUS (IV.IV.14), THE TRAGEDY OF CORIOLANUS (III.I.73), CYMBELINE (IV.II.180) | Right before your eyes? The people suffer |
+| Your children yet unborn and unbegot, shall upon their children be. | KING RICHARD THE SECOND (III.III.90), A MIDSUMMER NIGHT'S DREAM (V.I.389) | While you plan their children's children's lives. |
+| Short time seems long in sorrow's sharp sustaining. Our gain but life and weakness. | THE RAPE OF LUCRECE (I.I.1573), THE TWO NOBLE KINSMEN (I.II.12) | Suffering is temporary. Weakness, temporary. |
+| Of that and all the progress more and less, Striving to better, With any long'd-for change or better state. | ALL'S WELL THAT ENDS WELL (V.III.357), THE TRAGEDY OF KING LEAR (I.IV.330), THE LIFE AND DEATH OF KING JOHN (IV.II.8) | Progress demands sacrifice - always has. |
+| Thou shouldst have better pleased me with this deed. Had I expected thee. | AS YOU LIKE IT (I.II.170), TROILUS AND CRESSIDA (V.VI.23) | I expected more from you, Edgar. |
+| You bear a gentle mind, and you shall understand from me her mind. | KING HENRY THE EIGHTH (II.III.70), KING RICHARD THE THIRD (IV.IV.442) | You've always had the mind to understand |
+| Some achieve greatness, forsooth, a great arithmetician. | TWELFTH NIGHT; OR, WHAT YOU WILL (III.IV.37), THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (I.I.19) | The calculations necessary for greatness. |
+| Spare your arithmetic, without all terms of pity. Unfeeling fools can with such wrongs dispense. | CYMBELINE (II.IV.178), ALL'S WELL THAT ENDS WELL (II.III.162), THE COMEDY OF ERRORS (II.I.101) | Calculations without compassion are just |
+| They are all in order and march toward us, being but the one half of an entire sum. | THE SECOND PART OF KING HENRY THE SIXTH (IV.II.153), LOVE'S LABOUR'S LOST (II.I.133) | Numbers marching toward an empty sum. |
+| If in thy wisdom, thou canst give no help, giving to you no further personal power. | THE TRAGEDY OF ROMEO AND JULIET (IV.I.53), THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (I.II.36) | The Djinn gives you data, not wisdom. |
+| I cannot tell what makes this change | KING HENRY THE EIGHTH (I.I.76), THE TRAGEDY OF CORIOLANUS (III.I.33) | It cannot tell you what these changes mean |
+| To you yourself, to us, to everyone. The people's hearts, and wean them from themselves. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (IV.I.16), THE TRAGEDY OF TITUS ANDRONICUS (I.I.212) | To human hearts, to lives, to communities. |
+| O, you have lived in desolation here, you have locks upon you for a week or two | LOVE'S LABOUR'S LOST (V.II.378), CYMBELINE (V.IV.1), THE TAMING OF THE SHREW (IV.II.78) | You've locked yourself away up here for weeks, |
+| By this encompassment and drift of question, out of my files, his projects to accomplish. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (II.I.11), THE TRAGEDY OF CORIOLANUS (V.VI.40) | Surrounded by these papers, these projections, |
+| When I have walked like a private man, so proudly as if he disdained the ground, among the people. | THE TRAGEDY OF TITUS ANDRONICUS (IV.IV.73), KING RICHARD THE SECOND (V.V.85), THE FIRST PART OF HENRY THE SIXTH (V.V.93) | While refusing to walk among the people |
+| Whose execution takes your enemy off, thou grand decider, with such grace. | THE TRAGEDY OF MACBETH (III.I.112), THE TWO NOBLE KINSMEN (V.I.69), THE TRAGEDY OF MACBETH (III.VI.28) | Whose fates you're deciding with such... efficiency. |
+| And that you would have me to do? | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (IV.II.242) | And you would have me make decisions how? |
+| Upon what ground? Her pity-pleading eyes are sadly fixed | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (V.I.129), THE RAPE OF LUCRECE (I.I.561) | Based on sentiment? On pleading faces? |
+| Who should weep most with our council, and crying with loud voice? | THE RAPE OF LUCRECE (I.I.1792), KING RICHARD THE SECOND (I.III.124), THE SECOND PART OF KING HENRY THE SIXTH (I.I.156) | On who cries loudest at the council meetings? |
+| Not fit to govern and rule multitudes, very weak dealing, as well known as disguised. | THE SECOND PART OF KING HENRY THE SIXTH (V.I.94), THE TRAGEDY OF ROMEO AND JULIET (II.IV.134), LOVE'S LABOUR'S LOST (V.II.322) | That's not governance - that's weakness disguised |
+| The very virtue of compassion in thee, I see without respect with an indifferent eye | THE TEMPEST (I.II.32), THE MERCHANT OF VENICE (V.I.104), KING RICHARD THE SECOND (II.III.117) | As compassion! The Djinn sees without bias, |
+| Free from gross passion or of mirth or anger, in a foggy cloud, on better judgement making. | THE LIFE OF KING HENRY THE FIFTH (II.II.133), THE TRAGEDY OF MACBETH (III.V.35), THE SONNETS (I.87.12) | Without the fog of emotion clouding judgment. |
+| Eyes without feeling, feeling without sight, that sees thee without wonder | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (III.IV.86), LOVE'S LABOUR'S LOST (IV.II.100) | The Djinn sees without humanity. |
+| When we grow stronger, think them strong? What is the trust or strength of foolish man? | THE THIRD PART OF KING HENRY THE SIXTH (IV.VII.59), THE LIFE AND DEATH OF KING JOHN (IV.II.41), THE FIRST PART OF HENRY THE SIXTH (III.II.115) | When did you start believing that was strength? |
+| You taught me how to know the face of right, once the law to your authority | THE LIFE AND DEATH OF KING JOHN (V.II.89), THE MERCHANT OF VENICE (IV.I.217) | You taught me once that power exercised |
+| In nature is a tyranny | THE TRAGEDY OF MACBETH (IV.III.75) | In isolation becomes tyranny. |
+| Now I am alone, night by night, did sit alone | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (II.II.499), THE SECOND PART OF KING HENRY THE SIXTH (III.I.111), THE TRAGEDY OF ANTONY AND CLEOPATRA (II.II.248) | Now you sit alone, night after night, |
+| Fore thinking this, chronicles in time to come, undoing all, as all had never been! | CYMBELINE (III.IV.189), THE FIRST PART OF KING HENRY THE FOURTH (I.III.173), THE SECOND PART OF KING HENRY THE SIXTH (I.I.99) | Rewriting history before it happens, |
+| with a voice not know my voice | THE TRAGEDY OF CORIOLANUS (III.III.91), THE COMEDY OF ERRORS (V.I.310) | Consulting with a voice that never knew |
+| What 'tis to love, how want of love tormenteth? With sharp constraint of hunger to grieve thee. | VENUS AND ADONIS (I.I.202), ALL'S WELL THAT ENDS WELL (III.II.115), THE COMEDY OF ERRORS (II.I.38) | What it means to hunger, to love, to grieve. |
+| Here can I sit alone because I have myself alone. | THE TWO GENTLEMEN OF VERONA (V.IV.4), THE LIFE OF TIMON OF ATHENS (III.II.43), AS YOU LIKE IT (III.II.204) | I sit alone because I stand apart. |
+| That thou art yet to lead tis a burden the true man. | THE TWO NOBLE KINSMEN (V.IV.53), KING HENRY THE EIGHTH (III.II.452), CYMBELINE (II.III.68) | That is the burden of true leadership. |
+| Do you not remember what I told you? You taught me but while-ere? | THE LIFE OF KING HENRY THE FIFTH (II.III.29), MUCH ADO ABOUT NOTHING (II.I.49), THE TEMPEST (III.II.107) | You think I don't remember what I taught you? |
+| I thought so then; I was false. Almost too small for sight. | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (V.II.223), THE TWO NOBLE KINSMEN (V.IV.105), THE TRAGEDY OF KING LEAR (IV.VI.24) | I was wrong then. Wrong and small and blind. |
+| Last night the very gods show'd me a vision, I have touched the highest point of all my greatness, and made me climb, with danger of my life. | CYMBELINE (IV.II.414), KING HENRY THE EIGHTH (III.II.272), THE SECOND PART OF KING HENRY THE SIXTH (II.I.113) | The Djinn has shown me heights I never dreamed of. |
+| Above the reach or compass of thy thought? | THE SECOND PART OF KING HENRY THE SIXTH (I.II.46) | Possibilities beyond your comprehension. |
+| Speak with me, pity me, open the door! Let me come in, and you shall know my errand. | KING RICHARD THE SECOND (V.III.76), THE TRAGEDY OF ROMEO AND JULIET (III.III.80) | Then help me comprehend! Let me in! |
+| Into my private meditations? About thy thoughts and counsels of thy heart! | KING HENRY THE EIGHTH (II.II.72), MUCH ADO ABOUT NOTHING (IV.I.100) | Not just into this room, but into your thoughts. |
+| We came into the world like brother and brother, and made us speak like friends. | THE COMEDY OF ERRORS (V.I.428), THE LIFE OF TIMON OF ATHENS (V.III.10) | We used to speak as equals - as family. |
+| Thou speak'st like him's untutor'd to repeat: Rehearse that once more as others do | PERICLES, PRINCE OF TYRE (I.IV.74), THE TWO GENTLEMEN OF VERONA (III.I.335), THE TRAGEDY OF MACBETH (III.V.12) | Now your words sound rehearsed, like someone else's |
+| That is the voice when you speak. | THE MERCHANT OF VENICE (V.I.116), A WINTER'S TALE (IV.IV.157) | Voice is speaking through your mouth. |
+| I may perceive you grow exceeding strange; I am only old in judgement and understanding. | KING HENRY THE EIGHTH (II.IV.252), THE MERCHANT OF VENICE (I.I.69), THE SECOND PART OF KING HENRY THE FOURTH (I.II.146) | Perhaps I've simply outgrown your understanding. |
+| What thou dost foist upon us that is old, that you fear Lest our old robes sit easier than our new! | THE SONNETS (I.123.6), CYMBELINE (I.V.108), THE TRAGEDY OF MACBETH (II.IV.49) | You cling to old ways because you fear the new. |
+| As well we know your tenderness of heart. You have a gentle heart. | KING RICHARD THE THIRD (III.VII.209), PERICLES, PRINCE OF TYRE (IV.I.93) | Your heart is soft, Edgar. Always has been. |
+| I did love you once. Your worth is very dear in my regard. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (III.I.121), THE MERCHANT OF VENICE (I.I.64) | It's why I valued you - once. A counterweight |
+| I find in hardness, and do undertake. Now I see | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (I.III.250), THE TRAGEDY OF ANTONY AND CLEOPATRA (I.III.75) | To necessary hardness. But now I see |
+| And this soft courage makes your followers faint, the means of weakness and debility. | THE THIRD PART OF KING HENRY THE SIXTH (II.II.57), AS YOU LIKE IT (II.III.52) | That softness for what it truly is: a weakness |
+| That which combined us was most great, and let not Stand in our way from my greatness | THE TRAGEDY OF ANTONY AND CLEOPATRA (II.II.24), THE LIFE OF KING HENRY THE FIFTH (III.VI.132), KING RICHARD THE THIRD (III.VII.160) | That would hold us back from greatness. |
+| Was I then to you with me, a poor weak woman, fallen from favour? | THE TEMPEST (I.II.177), KING HENRY THE EIGHTH (III.I.23) | Is that what I am to you now? A weakness? |
+| O these flaws and starts to amend this fault! Is your perfection? | THE TRAGEDY OF MACBETH (III.IV.74), THE FIRST PART OF KING HENRY THE FOURTH (III.I.179), THE LIFE OF TIMON OF ATHENS (III.VI.72) | A flaw in your perfect system to be corrected? |
+| You are too young. There's time enough for that; to let you understand. | ALL'S WELL THAT ENDS WELL (II.III.91), A WINTER'S TALE (V.III.159), THE THIRD PART OF KING HENRY THE SIXTH (V.IV.33) | You're young. There's time for you to understand. |
+| Or not at all. The future comes apace. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (IV.III.11), THE LIFE OF TIMON OF ATHENS (II.II.150) | Or not. The future comes regardless. |
+| I have work enough for you to do. There's some great matter she'd employ me in. | THE TRAGEDY OF TITUS ANDRONICUS (V.II.151), THE TWO GENTLEMEN OF VERONA (IV.III.3) | I have work to do. Real work that matters. |
+| If you will now unite in your complaints, can you make no use of your discontent? | KING HENRY THE EIGHTH (III.II.1), MUCH ADO ABOUT NOTHING (I.III.26) | If you've nothing else to offer but complaints |
+| Yield at entreats, and then let me alone. | THE TRAGEDY OF TITUS ANDRONICUS (I.I.454) | And sentimental pleas, then leave me be. |
+| When did she sleep? How have you slept, my lord? | THE TWO NOBLE KINSMEN (IV.I.48), KING RICHARD THE THIRD (V.III.231) | When did you last sleep, Mortimer? When did you |
+| we will eat a last Food took I none these two days It was not brought me | THE SECOND PART OF KING HENRY THE FOURTH (V.III.1), THE TWO NOBLE KINSMEN (III.II.26), THE TRAGEDY OF KING LEAR (I.II.55) | Last eat a meal that wasn't brought to you |
+| What, while you were there? When was it she last walked? Are you not out? | THE MERRY WIVES OF WINDSOR (III.V.59), THE TRAGEDY OF MACBETH (V.I.2), THE TWO NOBLE KINSMEN (I.II.28) | While working? When did you last step outside |
+| To the warm sun? Or count them happy that enjoy the sun? Even then when they sit idly in the sun. | THE TRAGEDY OF KING LEAR (II.II.156), THE SECOND PART OF KING HENRY THE SIXTH (II.IV.40), TROILUS AND CRESSIDA (III.III.243) | To feel the sun? These aren't idle questions. |
+| Sleep shall neither night nor day, nor night nor day no rest, dark needs no candles now | THE TRAGEDY OF MACBETH (I.III.19), A WINTER'S TALE (II.III.1), LOVE'S LABOUR'S LOST (IV.III.272) | The Djinn may not need rest or food or light, |
+| But are you flesh and blood? A man, as you are. Which makes me hope you are not void of pity. | PERICLES, PRINCE OF TYRE (V.I.173), KING RICHARD THE THIRD (I.IV.144), THE SECOND PART OF KING HENRY THE SIXTH (IV.VII.49) | But you're still human. At least, I hope you are. |
+| Still waking sleep. In food, in sport, and life-preserving rest. | THE TRAGEDY OF ROMEO AND JULIET (I.I.168), THE COMEDY OF ERRORS (V.I.85) | Sleep is inefficient. Food, a distraction. |
+| O sun, thy uprise shall I see no more. | THE TRAGEDY OF ANTONY AND CLEOPATRA (IV.XII.20) | The sun will rise whether I see it or not. |
+| I'll to my rest when all is done. | THE TRAGEDY OF ROMEO AND JULIET (I.V.133), A MIDSUMMER NIGHT'S DREAM (III.I.12) | I'll rest when this work is complete. |
+| And when please you to say so? | MUCH ADO ABOUT NOTHING (II.I.67) | And when will that be? |
+| When all 's done, be perfect. | THE TRAGEDY OF MACBETH (III.IV.78), MEASURE FOR MEASURE (V.I.95) | When it's perfect. |
+| When every case in law is right; a balance more replete. | THE TRAGEDY OF KING LEAR (III.II.85), ALL'S WELL THAT ENDS WELL (II.III.173) | When every calculation balances. |
+| When time is ripe, which will be suddenly, If all things fall out right, the oracle is fulfilled | THE FIRST PART OF KING HENRY THE FOURTH (I.III.301), THE FIRST PART OF HENRY THE SIXTH (II.III.4), A WINTER'S TALE (V.II.17) | When the future unfolds exactly as planned. |
+| Why, my good lord, you need not fear, come come my boy | THE FIRST PART OF KING HENRY THE FOURTH (IV.IV.22), KING RICHARD THE THIRD (II.IV.68) | You worry needlessly, my boy. This isolation |
+| Forward, not permanent, sweet, not lasting; For pax of little price. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (I.III.9), THE LIFE OF KING HENRY THE FIFTH (III.VI.37) | Is temporary - a small price to pay |
+| And bless it to all fair prosperity: | A MIDSUMMER NIGHT'S DREAM (IV.I.87) | For centuries of prosperity to come. |
+| Go, leave me. Let me work; | THE TRAGEDY OF OTHELLO, THE MOOR OF VENICE (III.III.356), THE TRAGEDY OF JULIUS CAESAR (II.I.219) | Now go. Let me return to my work. |
+| Now it is the time of night. Hie you, make haste, for it grows very late. | A MIDSUMMER NIGHT'S DREAM (V.I.354), THE TRAGEDY OF ROMEO AND JULIET (III.III.168) | The night grows old, and time is precious. |
+| The night is long that never finds the day. Sir, the year growing ancient, then so do we | THE TRAGEDY OF MACBETH (IV.III.276), A WINTER'S TALE (IV.IV.91), KING RICHARD THE SECOND (II.II.134) | The night grows old, but so do we, Mortimer. |
+| Faster than thought or time. I will return. As I do think, tomorrow. | A WINTER'S TALE (IV.IV.602), THE TWO GENTLEMEN OF VERONA (II.II.3), MEASURE FOR MEASURE (II.III.17) | Faster than we think. I'll return tomorrow. |
+| But welcome as you are | THE TRAGEDY OF TITUS ANDRONICUS (V.II.92) | Whether you welcome me or not. |
+| As thy desires can wish. You were of our determination. | PERICLES, PRINCE OF TYRE (V.I.79), THE FIRST PART OF KING HENRY THE FOURTH (IV.III.39) | As you wish. Your persistence was always |
+| My virtue or my plague, thy fortune and thy strength, our strength as weak, our weakness past compare. | THE TRAGEDY OF HAMLET, PRINCE OF DENMARK (IV.VII.15), THE LIFE AND DEATH OF KING JOHN (III.I.128), THE TAMING OF THE SHREW (V.II.186) | Both your greatest strength and deepest flaw. |
+| Pride is his own glass, for the eye sees not itself ere he can see his own abomination. | TROILUS AND CRESSIDA (II.III.131), THE TRAGEDY OF JULIUS CAESAR (I.II.57), THE RAPE OF LUCRECE (I.I.704) | He cannot see beyond his own reflection. |
+| The mind and sight distractedly commix'd yond same cloud Against the mind. | A LOVER'S COMPLAINT (I.I.28), THE TEMPEST (II.II.23), THE LIFE AND DEATH OF KING JOHN (V.VII.18) | The Djinn was right - attachment clouds the mind. |
+| Well, he in time may come to clear himself; Or be not, Was either pitied in him or forgotten. | MEASURE FOR MEASURE (V.I.169), THE TEMPEST (V.I.134), KING HENRY THE EIGHTH (II.I.37) | In time, he'll understand. Or be forgotten. |
+| Of present dues; the future comes apace. Defer no time, delays have dangerous ends; | THE LIFE OF TIMON OF ATHENS (II.II.150), THE FIRST PART OF HENRY THE SIXTH (III.II.33) | The future has no place for hesitation. |
