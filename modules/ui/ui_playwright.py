@@ -18,7 +18,8 @@ from modules.ui.file_helper import (
     load_text_from_file,
     load_json_from_file,
     save_json_to_file,
-    ensure_directory
+    ensure_directory,
+    extract_act_scene_from_filename  # Import the function
 )
 from modules.ui.config_manager import (
     load_playwright_config,
@@ -509,28 +510,6 @@ class UIPlaywright:
         filepath = os.path.join(scenes_dir, filename)
         
         return save_text_to_file(content, filepath)
-    
-    # Helper function to import from ui.file_helper
-    def extract_act_scene_from_filename(self, filename: str) -> Tuple[str, str]:
-        """
-        Extract act and scene from filename.
-        
-        Args:
-            filename: Filename
-            
-        Returns:
-            Tuple of (act, scene)
-        """
-        try:
-            from modules.ui.file_helper import extract_act_scene_from_filename
-            return extract_act_scene_from_filename(filename)
-        except ImportError:
-            # Fallback implementation if file_helper is not available
-            match = re.search(r'act_?(\w+)_?scene_?(\w+)', filename, re.IGNORECASE)
-            if match:
-                return match.group(1), match.group(2)
-            return "unknown", "unknown"
-
 
 # Create a function to get a singleton instance
 _INSTANCE = None

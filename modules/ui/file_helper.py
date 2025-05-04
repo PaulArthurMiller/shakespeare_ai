@@ -259,8 +259,7 @@ def save_json_to_file(data: Dict[str, Any], filepath: str) -> bool:
         print(f"Error saving file {filepath}: {e}")
         return False
 
-
-def save_uploaded_file(uploaded_file, target_dir: str, filename: Optional[str] = None) -> str:
+def save_uploaded_file(uploaded_file: Any, target_dir: str, filename: Optional[str] = None) -> str:
     """
     Save an uploaded file from Streamlit.
     
@@ -276,8 +275,13 @@ def save_uploaded_file(uploaded_file, target_dir: str, filename: Optional[str] =
     ensure_directory(target_dir)
     
     # Use original filename if not provided
-    if not filename:
+    if filename is None and hasattr(uploaded_file, 'name'):
         filename = uploaded_file.name
+    
+    # Ensure filename is a string
+    if not isinstance(filename, str):
+        # Provide a default filename if we can't get one
+        filename = "uploaded_file.txt"
     
     # Full path
     filepath = os.path.join(target_dir, filename)

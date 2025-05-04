@@ -7,8 +7,7 @@ error handling, and format conversion for the UI.
 """
 import os
 import time
-from typing import Dict, List, Any, Optional, Tuple, Union
-from pathlib import Path
+from typing import Dict, List, Any, Optional, Tuple, Union, cast
 
 # Import module-specific helpers
 from modules.ui.file_helper import (
@@ -50,8 +49,8 @@ class UITranslator:
         self.translation_id = translation_id
         self.logger = logger  # For Streamlit logging
         
-        # Attribute for storing the translation manager
-        self.translation_manager = None
+        # Explicit typing to avoid None-type errors
+        self.translation_manager: Optional[TranslationManager] = None
         
         # Flag to track if the translator is initialized
         self.is_initialized = False
@@ -59,7 +58,7 @@ class UITranslator:
         # Check if translator modules are available
         if not TRANSLATOR_AVAILABLE:
             self._log("Warning: Translator modules not available. Limited functionality.")
-        
+    
     def _log(self, message: str) -> None:
         """
         Log a message using the appropriate logger.
@@ -95,7 +94,14 @@ class UITranslator:
             
             # Start a translation session if we have an ID
             if self.translation_id:
-                self.translation_manager.start_translation_session(self.translation_id)
+                if self.translation_manager is not None:
+                    self.translation_manager.start_translation_session(self.translation_id)
+                    self._log(f"Translation session started with ID: {self.translation_id}")
+                else:
+                    self._log("Failed to initialize translation manager")
+                    return False
+            else:
+                self._log("No translation ID provided, session not started")
             
             self.is_initialized = True
             self._log(f"Translator initialized with ID: {self.translation_id}")
@@ -114,6 +120,10 @@ class UITranslator:
         Returns:
             True if successful, False otherwise
         """
+        if not translation_id:
+            self._log("Error: Empty translation ID provided")
+            return False
+            
         self.translation_id = translation_id
         
         # Re-initialize with the new ID
@@ -134,6 +144,14 @@ class UITranslator:
             if not self.initialize():
                 return None
         
+        if not modern_line or not modern_line.strip():
+            self._log("Error: Empty line provided for translation")
+            return None
+            
+        if self.translation_manager is None:
+            self._log("Error: Translation manager not initialized")
+            return None
+            
         try:
             # Start a timer to measure translation time
             start_time = time.time()
@@ -149,9 +167,14 @@ class UITranslator:
             
             # Calculate elapsed time
             elapsed_time = time.time() - start_time
-            self._log(f"Translation completed in {elapsed_time:.2f} seconds")
             
-            return result
+            if result:
+                self._log(f"Translation completed in {elapsed_time:.2f} seconds")
+                return result
+            else:
+                self._log(f"Translation failed after {elapsed_time:.2f} seconds")
+                return None
+                
         except Exception as e:
             self._log(f"Error translating line: {e}")
             return None
@@ -171,12 +194,27 @@ class UITranslator:
             if not self.initialize():
                 return []
         
+        if not modern_lines:
+            self._log("Error: Empty list of lines provided for translation")
+            return []
+            
+        if self.translation_manager is None:
+            self._log("Error: Translation manager not initialized")
+            return []
+        
         try:
             self._log(f"Translating {len(modern_lines)} lines")
             
+            # Filter out empty lines
+            filtered_lines = [line for line in modern_lines if line and line.strip()]
+            
+            if not filtered_lines:
+                self._log("Error: All lines were empty after filtering")
+                return []
+                
             # Call the translation manager
             results = self.translation_manager.translate_group(
-                modern_lines=modern_lines,
+                modern_lines=filtered_lines,
                 use_hybrid_search=use_hybrid_search
             )
             
@@ -208,6 +246,14 @@ class UITranslator:
         if not self.is_initialized:
             if not self.initialize():
                 return False, "", 0
+                
+        if not self.translation_id:
+            self._log("Error: No translation ID set for file translation")
+            return False, "", 0
+            
+        if not os.path.exists(filepath):
+            self._log(f"Error: File not found: {filepath}")
+            return False, "", 0
         
         try:
             # Extract act and scene from filename
@@ -240,11 +286,17 @@ class UITranslator:
                 return False, "", 0
             
             # Determine output directory
-            if not output_dir:
+            actual_output_dir: str
+            if output_dir is None:
                 session_info = get_session_info(self.translation_id)
-                output_dir = session_info.get("output_dir", "outputs/translated_scenes")
+                actual_output_dir = session_info.get("output_dir", "outputs/translated_scenes")
+                if not actual_output_dir:
+                    actual_output_dir = "outputs/translated_scenes"
+            else:
+                actual_output_dir = output_dir
             
-            ensure_directory(output_dir)
+            # Now ensure_directory receives a string, not Optional[str]
+            ensure_directory(actual_output_dir)
             
             # Translate the lines
             translated_lines = self.translate_lines(
@@ -257,25 +309,30 @@ class UITranslator:
                 return False, "", 0
             
             # Save the translation using SceneSaver
-            saver = SceneSaver(translation_id=self.translation_id, base_output_dir=output_dir)
-            saver.save_scene(
-                act=act,
-                scene=scene,
-                translated_lines=translated_lines,
-                original_lines=modern_lines
-            )
-            
-            # Update scene info in the session
-            update_scene_info(
-                translation_id=self.translation_id,
-                act=act,
-                scene=scene,
-                filename=os.path.basename(filepath),
-                line_count=len(translated_lines)
-            )
-            
-            self._log(f"Translation completed and saved to {output_dir}")
-            return True, output_dir, len(translated_lines)
+            if TRANSLATOR_AVAILABLE:
+                saver = SceneSaver(translation_id=self.translation_id, base_output_dir=actual_output_dir)
+                saver.save_scene(
+                    act=act,
+                    scene=scene,
+                    translated_lines=translated_lines,
+                    original_lines=modern_lines
+                )
+                
+                # Update scene info in the session
+                update_scene_info(
+                    translation_id=self.translation_id,
+                    act=act,
+                    scene=scene,
+                    filename=os.path.basename(filepath),
+                    line_count=len(translated_lines)
+                )
+                
+                self._log(f"Translation completed and saved to {actual_output_dir}")
+                return True, actual_output_dir, len(translated_lines)
+            else:
+                self._log("Error: Translator modules not available for saving")
+                return False, "", 0
+                
         except Exception as e:
             self._log(f"Error translating file: {e}")
             return False, "", 0
@@ -301,6 +358,14 @@ class UITranslator:
         Returns:
             Tuple of (success, output_path, lines_translated)
         """
+        if not self.translation_id:
+            self._log("Error: No translation ID set for file translation")
+            return False, "", 0
+            
+        if uploaded_file is None:
+            self._log("Error: No file uploaded")
+            return False, "", 0
+            
         try:
             # Save the uploaded file temporarily
             ensure_directory(temp_dir)
@@ -319,9 +384,10 @@ class UITranslator:
             
             # Clean up temp file
             try:
-                os.remove(temp_path)
-            except:
-                pass
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception as remove_error:
+                self._log(f"Warning: Could not remove temporary file: {remove_error}")
             
             return success, out_dir, line_count
         except Exception as e:
@@ -356,7 +422,7 @@ class UITranslator:
 
 
 # Create a function to get a singleton instance
-_INSTANCE = None
+_INSTANCE: Optional[UITranslator] = None
 
 def get_ui_translator(translation_id: Optional[str] = None, logger=None) -> UITranslator:
     """
