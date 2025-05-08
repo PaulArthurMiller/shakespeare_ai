@@ -59,17 +59,25 @@ class UITranslator:
         if not TRANSLATOR_AVAILABLE:
             self._log("Warning: Translator modules not available. Limited functionality.")
     
-    def _log(self, message: str) -> None:
+    def _log(self, message: str, level: str = "info") -> None:
         """
         Log a message using the appropriate logger.
         
         Args:
             message: Message to log
+            level: Log level (info, error, warning, debug)
         """
         if self.logger:
-            self.logger.info(message)
+            if level == "error":
+                self.logger.error(message)
+            elif level == "warning":
+                self.logger.warning(message)
+            elif level == "debug":
+                self.logger.debug(message)
+            else:
+                self.logger.info(message)
         else:
-            print(message)
+            print(f"[{level.upper()}] {message}")
     
     def initialize(self, force_reinit: bool = False) -> bool:
         """
@@ -107,7 +115,7 @@ class UITranslator:
             self._log(f"Translator initialized with ID: {self.translation_id}")
             return True
         except Exception as e:
-            self._log(f"Error initializing translator: {e}")
+            self._log(f"Error initializing translator: {e}", level="error")
             return False
     
     def set_translation_id(self, translation_id: str) -> bool:

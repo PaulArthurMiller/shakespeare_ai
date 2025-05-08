@@ -4,6 +4,7 @@ import os
 import json
 from pathlib import Path
 from datetime import datetime
+import shutil  # For file operations
 
 # Import your existing modules
 from modules.playwright.story_expander import StoryExpander
@@ -11,6 +12,31 @@ from modules.playwright.scene_writer import SceneWriter
 from modules.translator.translation_manager import TranslationManager
 from modules.translator.scene_saver import SceneSaver
 from modules.utils.logger import CustomLogger
+from modules.ui.ui_playwright import get_ui_playwright
+from modules.ui.ui_translator import get_ui_translator
+from modules.ui.file_helper import load_text_from_file, save_text_to_file
+
+# Initialize session state
+if "mode" not in st.session_state:
+    st.session_state.mode = "Playwright"
+if "translation_id" not in st.session_state:
+    st.session_state.translation_id = None
+if "current_line_index" not in st.session_state:
+    st.session_state.current_line_index = 0
+if "translated_lines" not in st.session_state:
+    st.session_state.translated_lines = []
+if "modern_lines" not in st.session_state:
+    st.session_state.modern_lines = []
+    
+# New session states for the project-based UI
+if "current_project_id" not in st.session_state:
+    st.session_state.current_project_id = None
+if "show_export_options" not in st.session_state:
+    st.session_state.show_export_options = False
+if "generated_full_play" not in st.session_state:
+    st.session_state.generated_full_play = False
+if "last_generated_scene" not in st.session_state:
+    st.session_state.last_generated_scene = None
 
 # Set page config
 st.set_page_config(
@@ -110,9 +136,9 @@ with st.sidebar:
         length_guide = st.slider(
             "Length", 
             min_value=1, 
-            max_value=5, 
-            value=3, 
-            help="1 = Shorter, 5 = Longer"
+            max_value=3, 
+            value=2, 
+            help="1 = Shorter (600-800 words), 2 = Medium (900-1100 words), 3 = Longer (1200-1500 words)"
         )
     
     elif mode == "Translator":
@@ -175,117 +201,382 @@ with st.sidebar:
 if st.session_state.mode == "Playwright":
     st.title("Playwright Mode")
     
-    with st.form("playwright_form"):
-        use_full_play = st.checkbox("Generate Full Play", value=False)
-        
-        if use_full_play:
-            st.subheader("Full Play Generation")
-            
-            st.subheader("Story Arc")
-            story_arc = st.text_area(
-                "Enter full play story arc",
-                height=200,
-                help="Describe the overall story arc of the play"
-            )
-            
-            # Dynamic character inputs
-            st.subheader("Characters")
-            num_characters = st.number_input("Number of Characters", min_value=1, max_value=10, value=3)
-            
-            characters = {}
-            for i in range(num_characters):
-                col1, col2 = st.columns(2)
-                with col1:
-                    char_name = st.text_input(f"Character {i+1} Name")
-                with col2:
-                    char_desc = st.text_input(f"Character {i+1} Description")
-                if char_name:
-                    characters[char_name] = char_desc
-            
-            # Scene structure
-            st.subheader("Scene Structure")
-            num_acts = st.number_input("Number of Acts", min_value=1, max_value=5, value=3)
-            
-            all_scenes = {}
-            for act in range(1, num_acts + 1):
-                st.markdown(f"##### Act {act}")
-                num_scenes = st.number_input(f"Number of Scenes in Act {act}", min_value=1, max_value=10, value=2)
-                
-                act_scenes = {}
-                for scene in range(1, num_scenes + 1):
-                    scene_desc = st.text_area(f"Act {act}, Scene {scene} Description", height=100)
-                    act_scenes[str(scene)] = scene_desc
-                
-                all_scenes[str(act)] = act_scenes
-            
-        else:
-            st.subheader("Single Scene Generation")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                act_number = st.text_input("Act Number", value="I")
-            with col2:
-                scene_number = st.text_input("Scene Number", value="1")
-            
-            # Character inputs for single scene
-            st.subheader("Characters in Scene")
-            num_characters = st.number_input("Number of Characters", min_value=1, max_value=10, value=3)
-            
-            scene_characters = {}
-            for i in range(num_characters):
-                col1, col2 = st.columns(2)
-                with col1:
-                    char_name = st.text_input(f"Character {i+1} Name", key=f"single_char_name_{i}")
-                with col2:
-                    char_desc = st.text_input(f"Character {i+1} Description", key=f"single_char_desc_{i}")
-                if char_name:
-                    scene_characters[char_name] = char_desc
-            
-            # Scene description
-            scene_description = st.text_area(
-                "Scene Description",
-                height=200,
-                help="Describe what happens in this scene"
-            )
-        
-        # Submit button
-        submit = st.form_submit_button("Generate")
+    # Add tabs for different operations
+    tabs = st.tabs(["Create Project", "Add Scene", "Generate Scene", "Export"])
     
-    if submit:
-        with st.spinner("Generating Shakespeare-style content..."):
-            try:
-                # Update config
-                config = {
-                    "model_provider": model_provider,
-                    "model_name": model_name,
-                    "temperature": creativity
-                }
-                
-                # Here you would call your existing modules
-                # This is a placeholder for the actual implementation
-                st.success("Generation complete!")
-                
-                # Display output
-                st.subheader("Generated Content")
-                
-                # Placeholder for actual generated content
-                generated_content = "Thy words doth flow like gentle streams..."
-                
-                st.text_area("Output", generated_content, height=400)
-                
-                # Save to file option
-                output_filename = st.text_input("Save to filename", "shakespeare_output.md")
-                if st.button("Save to File"):
+    # Tab 1: Create Project
+    with tabs[0]:
+        st.header("Create a New Play Project")
+        
+        with st.form("create_project_form"):
+            play_title = st.text_input("Play Title", "My Modern Play")
+            
+            # Thematic guidelines
+            thematic_guidelines = st.text_area(
+                "Thematic Guidelines",
+                "A modern retelling that explores themes of ambition, betrayal, and redemption.",
+                height=150,
+                help="Overall thematic guidance for the entire play"
+            )
+            
+            # Character voices input
+            st.subheader("Character Voices")
+            
+            num_characters = st.number_input("Number of Characters", min_value=1, max_value=10, value=3)
+            
+            character_voices = {}
+            for i in range(num_characters):
+                col1, col2 = st.columns(2)
+                with col1:
+                    char_name = st.text_input(f"Character {i+1} Name", key=f"char_name_{i}")
+                with col2:
+                    char_desc = st.text_input(f"Character {i+1} Voice", 
+                                            key=f"char_desc_{i}", 
+                                            help="Describe how this character speaks")
+                if char_name:
+                    character_voices[char_name] = char_desc
+            
+            # Create project button
+            submit_project = st.form_submit_button("Create Project")
+        
+        if submit_project:
+            if not character_voices:
+                st.error("Please add at least one character")
+            else:
+                with st.spinner("Creating project..."):
                     try:
-                        with open(output_filename, "w") as f:
-                            f.write(generated_content)
-                        st.success(f"Saved to {output_filename}")
+                        # Get UI playwright instance
+                        playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+                        
+                        # Create the project
+                        project_id = playwright.create_play_project(
+                            title=play_title,
+                            thematic_guidelines=thematic_guidelines,
+                            character_voices=character_voices
+                        )
+                        
+                        # Store project_id in session state
+                        st.session_state.current_project_id = project_id
+                        
+                        st.success(f"Project created successfully! Project ID: {project_id}")
+                        st.balloons()
                     except Exception as e:
-                        st.error(f"Error saving file: {e}")
+                        st.error(f"Error creating project: {e}")
+    
+    # Tab 2: Add Scene
+    with tabs[1]:
+        st.header("Add Scene to Project")
+        
+        # Check if we have a current project
+        if not st.session_state.get("current_project_id"):
+            # No current project, allow selection from existing projects
+            playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+            projects = playwright.list_projects()
+            
+            if not projects:
+                st.warning("No projects found. Create a project first.")
+            else:
+                project_options = {p["title"] + " (" + p["id"] + ")": p["id"] for p in projects}
+                selected_project = st.selectbox(
+                    "Select Project",
+                    options=list(project_options.keys())
+                )
                 
-            except Exception as e:
-                st.error(f"Error generating content: {e}")
-                logger.error(f"Error in playwright generation: {e}")
+                if selected_project:
+                    st.session_state.current_project_id = project_options[selected_project]
+                    st.success(f"Selected project: {selected_project}")
+        
+        # If we have a project (either selected or created), show the add scene form
+        if st.session_state.get("current_project_id"):
+            project_id = st.session_state.current_project_id
+            
+            # Get project data to show metadata and available characters
+            playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+            project_data = playwright.get_project_data(project_id)
+            
+            if project_data:
+                st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
+                st.write(f"Characters: {', '.join(project_data.get('character_voices', {}).keys())}")
+                
+                with st.form("add_scene_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        act = st.text_input("Act", "I", help="Act number (e.g., I, II, III or 1, 2, 3)")
+                    with col2:
+                        scene = st.text_input("Scene", "1", help="Scene number (e.g., 1, 2, 3)")
+                    
+                    # Scene overview
+                    overview = st.text_area(
+                        "Scene Overview",
+                        "Scene description here...",
+                        height=150,
+                        help="Describe what happens in this scene"
+                    )
+                    
+                    # Scene setting
+                    setting = st.text_area(
+                        "Setting",
+                        "Describe the setting...",
+                        height=100,
+                        help="Physical location and atmosphere of the scene"
+                    )
+                    
+                    # Characters in scene
+                    all_characters = list(project_data.get("character_voices", {}).keys())
+                    scene_characters = st.multiselect(
+                        "Characters in Scene",
+                        options=all_characters,
+                        default=all_characters[:2] if len(all_characters) >= 2 else all_characters
+                    )
+                    
+                    # Additional instructions
+                    additional_instructions = st.text_area(
+                        "Additional Instructions (Optional)",
+                        "",
+                        height=100,
+                        help="Any special notes for this scene"
+                    )
+                    
+                    # Submit button
+                    submit_scene = st.form_submit_button("Add Scene")
+                
+                if submit_scene:
+                    if not overview or not setting or not scene_characters:
+                        st.error("Please fill in all required fields")
+                    else:
+                        with st.spinner("Adding scene to project..."):
+                            try:
+                                success = playwright.add_scene_to_project(
+                                    project_id=project_id,
+                                    act=act,
+                                    scene=scene,
+                                    overview=overview,
+                                    setting=setting,
+                                    characters=scene_characters,
+                                    additional_instructions=additional_instructions
+                                )
+                                
+                                if success:
+                                    st.success(f"Scene {act}.{scene} added successfully!")
+                                else:
+                                    st.error("Failed to add scene")
+                            except Exception as e:
+                                st.error(f"Error adding scene: {e}")
+    
+    # Tab 3: Generate Scene
+    with tabs[2]:
+        st.header("Generate Scene")
+        
+        # Check if we have a current project
+        if not st.session_state.get("current_project_id"):
+            # No current project, allow selection from existing projects
+            playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+            projects = playwright.list_projects()
+            
+            if not projects:
+                st.warning("No projects found. Create a project first.")
+            else:
+                project_options = {p["title"] + " (" + p["id"] + ")": p["id"] for p in projects}
+                selected_project = st.selectbox(
+                    "Select Project",
+                    options=list(project_options.keys()),
+                    key="gen_project_select"
+                )
+                
+                if selected_project:
+                    st.session_state.current_project_id = project_options[selected_project]
+                    st.success(f"Selected project: {selected_project}")
+        
+        # If we have a project, show scene generation options
+        if st.session_state.get("current_project_id"):
+            project_id = st.session_state.current_project_id
+            
+            # Get project data
+            playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+            project_data = playwright.get_project_data(project_id)
+            
+            if project_data:
+                st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
+                
+                # Get defined scenes
+                scenes = project_data.get("scenes", [])
+                
+                if not scenes:
+                    st.warning("No scenes defined in this project. Please add a scene first.")
+                else:
+                    # Allow user to select a scene or generate all
+                    scene_options = [f"Act {s['act']}, Scene {s['scene']}" for s in scenes]
+                    scene_options.insert(0, "Generate All Scenes")
+                    
+                    selected_option = st.selectbox(
+                        "Select Scene to Generate",
+                        options=scene_options
+                    )
+                    
+                    # Scene length option
+                    length_option = st.select_slider(
+                        "Scene Length",
+                        options=["short", "medium", "long"],
+                        value="medium",
+                        help="short (600-800 words), medium (900-1100 words), long (1200-1500 words)"
+                    )
+                    
+                    # Generate button
+                    if st.button("Generate Scene(s)"):
+                        if selected_option == "Generate All Scenes":
+                            # Generate all scenes
+                            with st.spinner("Generating all scenes... This may take a while."):
+                                try:
+                                    success, result = playwright.generate_full_project(
+                                        project_id=project_id,
+                                        length_option=length_option
+                                    )
+                                    
+                                    if success:
+                                        st.success("All scenes generated successfully!")
+                                        st.info(f"Combined play saved to: {result}")
+                                        
+                                        # Show option to export
+                                        st.session_state.show_export_options = True
+                                        st.session_state.generated_full_play = True
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error generating scenes: {result}")
+                                except Exception as e:
+                                    st.error(f"Error generating scenes: {e}")
+                        else:
+                            # Generate specific scene
+                            scene_idx = scene_options.index(selected_option) - 1  # Adjust for "Generate All" option
+                            scene_data = scenes[scene_idx]
+                            
+                            with st.spinner(f"Generating Act {scene_data['act']}, Scene {scene_data['scene']}..."):
+                                try:
+                                    success, content, scene_path = playwright.generate_project_scene(
+                                        project_id=project_id,
+                                        act=scene_data['act'],
+                                        scene=scene_data['scene'],
+                                        length_option=length_option
+                                    )
+                                    
+                                    if success:
+                                        st.success(f"Scene generated successfully!")
+                                        
+                                        # Display the generated scene
+                                        st.text_area("Generated Scene", content, height=400)
+                                        
+                                        # Store the scene info for export
+                                        st.session_state.last_generated_scene = {
+                                            "project_id": project_id,
+                                            "act": scene_data['act'],
+                                            "scene": scene_data['scene'],
+                                            "path": scene_path
+                                        }
+                                        
+                                        # Show export options
+                                        st.session_state.show_export_options = True
+                                        st.session_state.generated_full_play = False
+                                        st.rerun()
+                                    else:
+                                        st.error(f"Error generating scene: {content}")
+                                except Exception as e:
+                                    st.error(f"Error generating scene: {e}")
+    
+    # Tab 4: Export
+    with tabs[3]:
+        st.header("Export Play")
+        
+        # Check if we have content to export
+        if not st.session_state.get("current_project_id"):
+            st.warning("No active project. Please create or select a project first.")
+        elif not st.session_state.get("show_export_options", False):
+            st.info("Generate a scene or full play first to enable export options.")
+        else:
+            project_id = st.session_state.current_project_id
+            
+            # Get project data
+            playwright = get_ui_playwright(logger=st.session_state.get("logger"))
+            project_data = playwright.get_project_data(project_id)
+            
+            if project_data:
+                st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
+                
+                # Export format options
+                export_format = st.radio(
+                    "Export Format",
+                    options=["DOCX", "Markdown"],
+                    index=0,
+                    horizontal=True
+                )
+                
+                # What to export
+                if st.session_state.get("generated_full_play", False):
+                    # Full play was generated
+                    if st.button("Export Full Play"):
+                        with st.spinner(f"Exporting play as {export_format}..."):
+                            try:
+                                success, output_path = playwright.save_full_play_to_file(
+                                    project_id=project_id,
+                                    output_format=export_format.lower()
+                                )
+                                
+                                if success:
+                                    st.success(f"Play exported successfully!")
+                                    st.info(f"Saved to: {output_path}")
+                                    
+                                    # Provide download link if possible
+                                    if os.path.exists(output_path):
+                                        with open(output_path, "rb") as f:
+                                            file_contents = f.read()
+                                        
+                                        extension = ".docx" if export_format.lower() == "docx" else ".md"
+                                        filename = f"{project_data.get('title', 'play').replace(' ', '_')}{extension}"
+                                        
+                                        st.download_button(
+                                            label="Download File",
+                                            data=file_contents,
+                                            file_name=filename,
+                                            mime="application/octet-stream"
+                                        )
+                                else:
+                                    st.error(f"Error exporting play: {output_path}")
+                            except Exception as e:
+                                st.error(f"Error exporting play: {e}")
+                else:
+                    # Single scene was generated
+                    last_scene = st.session_state.get("last_generated_scene", {})
+                    
+                    if last_scene and st.button("Export Scene"):
+                        with st.spinner(f"Exporting scene as {export_format}..."):
+                            try:
+                                success, output_path = playwright.save_scene_to_file(
+                                    project_id=project_id,
+                                    act=last_scene['act'],
+                                    scene=last_scene['scene'],
+                                    output_format=export_format.lower()
+                                )
+                                
+                                if success:
+                                    st.success(f"Scene exported successfully!")
+                                    st.info(f"Saved to: {output_path}")
+                                    
+                                    # Provide download link if possible
+                                    if os.path.exists(output_path):
+                                        with open(output_path, "rb") as f:
+                                            file_contents = f.read()
+                                        
+                                        extension = ".docx" if export_format.lower() == "docx" else ".md"
+                                        filename = f"act_{last_scene['act'].lower()}_scene_{last_scene['scene'].lower()}{extension}"
+                                        
+                                        st.download_button(
+                                            label="Download File",
+                                            data=file_contents,
+                                            file_name=filename,
+                                            mime="application/octet-stream"
+                                        )
+                                else:
+                                    st.error(f"Error exporting scene: {output_path}")
+                            except Exception as e:
+                                st.error(f"Error exporting scene: {e}")
 
 elif st.session_state.mode == "Translator":
     st.title("Translator Mode")

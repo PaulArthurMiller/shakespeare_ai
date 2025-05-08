@@ -35,22 +35,35 @@ class CustomLogger:
             file_handler.setFormatter(formatter)
             self.logger.addHandler(file_handler)
 
-    def debug(self, message):
-        """Log a debug message."""
-        self.logger.debug(message)
-
-    def info(self, message):
+    def _log(self, message: str, level: str = "info") -> None:
+        """
+        Log a message at the specified level.
+        
+        Args:
+            message: Message to log
+            level: Log level (info, error, warning, debug)
+        """
+        if level.lower() == "error":
+            self.logger.error(message)
+        elif level.lower() == "warning":
+            self.logger.warning(message)
+        elif level.lower() == "debug":
+            self.logger.debug(message)
+        else:  # Default to info
+            self.logger.info(message)
+    
+    def info(self, message: str) -> None:
         """Log an info message."""
         self.logger.info(message)
 
-    def warning(self, message):
+    def warning(self, message: str) -> None:
         """Log a warning message."""
         self.logger.warning(message)
 
-    def error(self, message):
+    def error(self, message: str) -> None:
         """Log an error message."""
         self.logger.error(message)
 
-    def critical(self, message):
-        """Log a critical message."""
-        self.logger.critical(message)
+    def debug(self, message: str) -> None:
+        """Log a debug message."""
+        self.logger.debug(message)

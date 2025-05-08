@@ -43,7 +43,10 @@ def extract_act_scene_from_filename(filepath: str) -> Tuple[str, str]:
     for pattern in patterns:
         match = re.search(pattern, filename, re.IGNORECASE)
         if match:
-            return match.group(1), match.group(2)
+            # Clean any trailing underscores from matched groups
+            act = match.group(1).rstrip('_')
+            scene = match.group(2).rstrip('_')
+            return act, scene
     
     # Default if no pattern matches
     return "unknown", "unknown"
