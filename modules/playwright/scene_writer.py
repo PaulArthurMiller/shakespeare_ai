@@ -12,6 +12,7 @@ class SceneWriter:
         self,
         config_path: str = "modules/playwright/config.py",
         expanded_story_path: str = "data/modern_play/expanded_story.json",
+        output_dir: Optional[str] = None,
         length_option: str = "medium"  # New parameter with default "medium"
     ):
         self.logger = CustomLogger("SceneWriter")
@@ -33,14 +34,21 @@ class SceneWriter:
         self.logger.info(f"Using length option: {length_option} ({self.word_count_range[0]}-{self.word_count_range[1]} words)")
         
         self.expanded_story_path = expanded_story_path
-        self.output_dir = "data/modern_play/generated_scenes_claude2"
+        self.output_dir = output_dir or "data/modern_play/generated_scenes_claude2"
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.openai_client = None
         self.anthropic_client = None
         self._init_model_client()
 
-        self.story = self._load_json(self.expanded_story_path)
+        # Load the story data - use try/except to provide helpful error messages
+        try:
+            self.story = self._load_json(self.expanded_story_path)
+            if not self.story or "scenes" not in self.story:
+                self.logger.error(f"No valid scene data found in {self.expanded_story_path}")
+        except Exception as e:
+            self.logger.error(f"Failed to load story data from {self.expanded_story_path}: {e}")
+            self.story = {}
         
     def _get_word_count_range(self, length_option: str) -> tuple:
         """

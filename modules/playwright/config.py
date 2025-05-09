@@ -1,5 +1,5 @@
 # Configuration file for story generation and model settings
-import random
+
 
 # Choose 'openai' or 'anthropic'
 model_provider = "anthropic"
@@ -11,4 +11,4 @@ model_name = "claude-3-7-sonnet-20250219"
 temperature = 0.7
 
 # Optional: Set a random seed for reproducibility - comment out the 'random' call and choose an integer for consistency.
-random_seed = random.randint(0, 999999)
+random_seed = 926656

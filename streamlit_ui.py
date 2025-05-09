@@ -2,6 +2,7 @@ import streamlit as st
 import uuid
 import os
 import json
+from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
 from datetime import datetime
 import shutil  # For file operations
@@ -12,7 +13,7 @@ from modules.playwright.scene_writer import SceneWriter
 from modules.translator.translation_manager import TranslationManager
 from modules.translator.scene_saver import SceneSaver
 from modules.utils.logger import CustomLogger
-from modules.ui.ui_playwright import get_ui_playwright
+from modules.ui.playwright.ui_playwright import get_ui_playwright
 from modules.ui.ui_translator import get_ui_translator
 from modules.ui.file_helper import load_text_from_file, save_text_to_file
 
@@ -288,8 +289,11 @@ if st.session_state.mode == "Playwright":
         
         # If we have a project (either selected or created), show the add scene form
         if st.session_state.get("current_project_id"):
-            project_id = st.session_state.current_project_id
-            
+            project_id: Optional[str] = st.session_state.current_project_id
+            if project_id is None:
+                st.error("⚠️ No project selected. Please create or select a project first.")
+                st.stop()  # This stops execution of the Streamlit app at this point
+
             # Get project data to show metadata and available characters
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
             project_data = playwright.get_project_data(project_id)
@@ -389,8 +393,12 @@ if st.session_state.mode == "Playwright":
         
         # If we have a project, show scene generation options
         if st.session_state.get("current_project_id"):
-            project_id = st.session_state.current_project_id
-            
+            project_id: Optional[str] = st.session_state.current_project_id
+            if project_id is None:
+                st.error("⚠️ No project selected. Please create or select a project first.")
+                st.info("Use the 'Create Project' tab to create a new project or select an existing one.")
+                st.stop()  # This stops execution of the Streamlit app at this point
+
             # Get project data
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
             project_data = playwright.get_project_data(project_id)
@@ -436,14 +444,34 @@ if st.session_state.mode == "Playwright":
                                         st.success("All scenes generated successfully!")
                                         st.info(f"Combined play saved to: {result}")
                                         
+                                        # Display a clickable link to open the file location
+                                        if os.path.exists(result):
+                                            directory = os.path.dirname(result)
+                                            st.markdown(f"**Output location:** `{directory}`")
+                                            
+                                            # Read a snippet of the generated play
+                                            try:
+                                                with open(result, 'r', encoding='utf-8') as f:
+                                                    play_content = f.read()
+                                                    # Display a preview of the play (first 500 chars)
+                                                    st.text_area("Preview of generated play", 
+                                                                play_content[:500] + "...", 
+                                                                height=200)
+                                            except:
+                                                pass
+                                        
                                         # Show option to export
                                         st.session_state.show_export_options = True
                                         st.session_state.generated_full_play = True
-                                        st.rerun()
+                                        # Add a button to jump to export tab
+                                        if st.button("Go to Export Options"):
+                                            st.rerun()
                                     else:
                                         st.error(f"Error generating scenes: {result}")
+                                        st.warning("Please check the logs for more information.")
                                 except Exception as e:
                                     st.error(f"Error generating scenes: {e}")
+                                    st.warning("Please check the logs for more information.")
                         else:
                             # Generate specific scene
                             scene_idx = scene_options.index(selected_option) - 1  # Adjust for "Generate All" option
@@ -451,6 +479,18 @@ if st.session_state.mode == "Playwright":
                             
                             with st.spinner(f"Generating Act {scene_data['act']}, Scene {scene_data['scene']}..."):
                                 try:
+                                    progress_bar = st.progress(0)
+                                    status_text = st.empty()
+                                    
+                                    # Update status periodically to show activity
+                                    status_text.text("Initializing scene generation...")
+                                    progress_bar.progress(10)
+                                    
+                                    # Start generation
+                                    status_text.text("Creating scene expansion...")
+                                    progress_bar.progress(30)
+                                    
+                                    # This part is actually doing the work
                                     success, content, scene_path = playwright.generate_project_scene(
                                         project_id=project_id,
                                         act=scene_data['act'],
@@ -458,11 +498,22 @@ if st.session_state.mode == "Playwright":
                                         length_option=length_option
                                     )
                                     
+                                    # Update progress
+                                    status_text.text("Finalizing scene...")
+                                    progress_bar.progress(90)
+                                    
                                     if success:
+                                        progress_bar.progress(100)
+                                        status_text.text("Scene generation completed!")
                                         st.success(f"Scene generated successfully!")
                                         
                                         # Display the generated scene
                                         st.text_area("Generated Scene", content, height=400)
+                                        
+                                        # Display file location
+                                        if os.path.exists(scene_path):
+                                            directory = os.path.dirname(scene_path)
+                                            st.markdown(f"**Output location:** `{directory}`")
                                         
                                         # Store the scene info for export
                                         st.session_state.last_generated_scene = {
@@ -475,11 +526,17 @@ if st.session_state.mode == "Playwright":
                                         # Show export options
                                         st.session_state.show_export_options = True
                                         st.session_state.generated_full_play = False
-                                        st.rerun()
+                                        # Add a button to jump to export tab
+                                        if st.button("Go to Export Options"):
+                                            st.rerun()
                                     else:
+                                        progress_bar.progress(0)
+                                        status_text.text("Scene generation failed.")
                                         st.error(f"Error generating scene: {content}")
+                                        st.warning("Please check the logs for more information.")
                                 except Exception as e:
                                     st.error(f"Error generating scene: {e}")
+                                    st.warning("Please check the logs for more information.")
     
     # Tab 4: Export
     with tabs[3]:
@@ -491,8 +548,12 @@ if st.session_state.mode == "Playwright":
         elif not st.session_state.get("show_export_options", False):
             st.info("Generate a scene or full play first to enable export options.")
         else:
-            project_id = st.session_state.current_project_id
-            
+            project_id: Optional[str] = st.session_state.current_project_id
+            if project_id is None:
+                st.error("⚠️ No project selected. Please create or select a project first.")
+                st.info("Create a project in the 'Create Project' tab before generating scenes.")
+                st.stop()  # This stops execution of the Streamlit app at this point            
+
             # Get project data
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
             project_data = playwright.get_project_data(project_id)
@@ -805,7 +866,7 @@ elif st.session_state.mode == "Translator":
                     if st.button("Save All Translated Lines"):
                         try:
                             # Initialize SceneSaver
-                            saver = SceneSaver(output_dir="outputs/section_translations")
+                            saver = SceneSaver(base_output_dir="outputs/section_translations")
                             
                             # Save the translated lines
                             saver.save_scene(
