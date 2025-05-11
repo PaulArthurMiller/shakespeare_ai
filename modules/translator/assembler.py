@@ -3,6 +3,7 @@
 import json
 import re
 import importlib.util
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional, Union
 from modules.translator.types import CandidateQuote
 from modules.utils.logger import CustomLogger
@@ -10,6 +11,7 @@ from openai import OpenAI
 from anthropic import Anthropic
 from anthropic.types import TextBlock
 
+load_dotenv()
 
 class Assembler:
     def __init__(

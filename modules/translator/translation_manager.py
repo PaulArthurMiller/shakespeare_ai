@@ -8,8 +8,11 @@ from modules.translator.assembler import Assembler
 from modules.translator.scene_saver import SceneSaver
 from modules.translator.config import get_config, update_config, get_output_dir
 from modules.rag.used_map import UsedMap
+from dotenv import load_dotenv
 import re
 
+
+load_dotenv()
 
 class TranslationManager:
     def __init__(self, custom_config: Optional[Dict[str, Any]] = None, logger: Optional[CustomLogger] = None):

@@ -18,6 +18,7 @@ CLIENT_PACKAGE_STRUCTURE = {
     # Root files
     "root_files": [
         "streamlit_ui.py",
+        "client_setup.py",
         "setup.py",
         "requirements.txt",
         "README.md",
@@ -32,6 +33,15 @@ CLIENT_PACKAGE_STRUCTURE = {
             "session_manager.py",
             "file_helper.py",
             "ui_translator.py",
+            "ui_playwright.py"
+        ],
+        "modules/ui/playwright": [
+            "__init__.py",
+            "config_manager.py",
+            "export_manager.py",
+            "project_manager.py",
+            "scene_generator.py",
+            "story_manager.py",
             "ui_playwright.py"
         ],
         "modules/playwright": [
@@ -72,28 +82,41 @@ CLIENT_PACKAGE_STRUCTURE = {
         "modules/output": [
             "__init__.py",
             "final_output_generator.py",
-            "format_translated_play.py"
+            "format_translated_play.py",
+            "save_modern_play.py"
         ],
         "modules/utils": [
             "__init__.py",
-            "logger.py",
-            "env.py"
+            "logger.py"
         ]
     },
-    # Directories to copy entirely
-    "full_directories": [
-        "embeddings/chromadb_vectors",
-        "data/processed_chunks",
-        "data/prompts",
-        "data/templates",
-        "data/modern_play"
-    ],
-    # Empty directories to create
+    # Minimal data needed for operation
+    "data_files": {
+        "data/processed_chunks": [
+            "lines.json",
+            "phrases.json", 
+            "fragments.json"
+        ],
+        "data/line_corpus": [  # For validator ground truth
+            "lines.json"
+        ],
+        "data/prompts": [
+            "character_voices.json",
+            "scene_summaries.json"
+        ]
+    },
+    # Empty directories to create (will be created during operation)
     "empty_directories": [
+        "embeddings",  # Add chromadb_vectors here
         "outputs/translated_scenes",
         "outputs/test_run", 
         "outputs/section_translations",
-        "translation_sessions"
+        "translation_sessions",
+        "data/used_maps",  # This will be created when needed
+        "data/play_projects",  # For playwright projects
+        "logs",  # For application logs
+        "config",  # For any config files generated at runtime
+        "temp"  # For temporary files
     ]
 }
 
@@ -121,22 +144,6 @@ def copy_file(source, destination, verbose=True):
         print(f"  Error copying {source}: {e}")
         return False
 
-def copy_directory(source, destination, verbose=True):
-    """Copy a directory recursively with error handling."""
-    try:
-        if os.path.exists(destination):
-            shutil.rmtree(destination)
-        shutil.copytree(source, destination)
-        if verbose:
-            print(f"  Copied directory: {source} -> {destination}")
-        return True
-    except FileNotFoundError:
-        print(f"  Warning: Source directory not found: {source}")
-        return False
-    except Exception as e:
-        print(f"  Error copying directory {source}: {e}")
-        return False
-
 def create_package_info(package_dir, source_dir):
     """Create a package_info.json file with metadata about the package."""
     info = {
@@ -146,7 +153,7 @@ def create_package_info(package_dir, source_dir):
         "package_directory": str(package_dir),
         "version": "1.0.0",
         "included_modules": list(CLIENT_PACKAGE_STRUCTURE["module_directories"].keys()),
-        "included_data": CLIENT_PACKAGE_STRUCTURE["full_directories"]
+        "included_data": list(CLIENT_PACKAGE_STRUCTURE["data_files"].keys())
     }
     
     info_path = os.path.join(package_dir, "package_info.json")
@@ -224,23 +231,27 @@ def create_client_package(source_dir, output_dir, package_name=None, verbose=Tru
             else:
                 copy_file(source_path, dest_path, verbose)
     
-    # 3. Copy full directories
+    # 3. Copy specific data files
     if verbose:
-        print("\nCopying full directories...")
+        print("\nCopying required data files...")
     
-    for directory in CLIENT_PACKAGE_STRUCTURE["full_directories"]:
-        source_path = os.path.join(source_dir, directory)
-        dest_path = os.path.join(package_dir, directory)
+    for data_dir, files in CLIENT_PACKAGE_STRUCTURE["data_files"].items():
+        # Create the data directory
+        data_path = os.path.join(package_dir, data_dir)
+        ensure_directory(data_path)
         
-        # Create parent directory
-        ensure_directory(os.path.dirname(dest_path))
-        
-        # Try copying - if not found, just create empty directory
-        if not copy_directory(source_path, dest_path, verbose):
-            ensure_directory(dest_path)
-            create_readme(dest_path, f"This directory should contain {directory} data files.")
-            if verbose:
-                print(f"  Created empty directory: {dest_path}")
+        # Copy each file
+        for filename in files:
+            source_path = os.path.join(source_dir, data_dir, filename)
+            dest_path = os.path.join(data_path, filename)
+            
+            if not copy_file(source_path, dest_path, verbose):
+                # If the file doesn't exist, create an empty placeholder
+                if filename.endswith('.json'):
+                    with open(dest_path, 'w', encoding='utf-8') as f:
+                        json.dump({}, f, indent=2)
+                    if verbose:
+                        print(f"  Created empty: {dest_path}")
     
     # 4. Create empty directories
     if verbose:
@@ -249,7 +260,19 @@ def create_client_package(source_dir, output_dir, package_name=None, verbose=Tru
     for directory in CLIENT_PACKAGE_STRUCTURE["empty_directories"]:
         dir_path = os.path.join(package_dir, directory)
         ensure_directory(dir_path)
-        create_readme(dir_path)
+        
+        # Create appropriate README for each directory
+        readme_content = "This directory is used for storing output files."
+        if "embeddings" in directory:
+            readme_content = "Extract the Chroma database (chromadb_vectors folder) here."
+        elif "used_maps" in directory:
+            readme_content = "This directory stores translation session data and will be created automatically."
+        elif "play_projects" in directory:
+            readme_content = "This directory stores playwright project data."
+        elif "logs" in directory:
+            readme_content = "Application logs are stored here."
+        
+        create_readme(dir_path, readme_content)
         if verbose:
             print(f"  Created directory: {dir_path}")
     

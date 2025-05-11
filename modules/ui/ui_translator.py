@@ -67,17 +67,20 @@ class UITranslator:
             message: Message to log
             level: Log level (info, error, warning, debug)
         """
+        # Always print to console during debugging
+        print(f"[UITranslator] [{level.upper()}] {message}")
+        
         if self.logger:
-            if level == "error":
-                self.logger.error(message)
-            elif level == "warning":
-                self.logger.warning(message)
-            elif level == "debug":
-                self.logger.debug(message)
+            # Check if it's our custom logger
+            if hasattr(self.logger, "_log"):
+                self.logger._log(message, level)
+            elif hasattr(self.logger, level):
+                # For Streamlit or other loggers that have direct methods
+                getattr(self.logger, level)(message)
             else:
-                self.logger.info(message)
-        else:
-            print(f"[{level.upper()}] {message}")
+                # Last resort: try the most common method
+                if hasattr(self.logger, "info"):
+                    self.logger.info(f"[{level.upper()}] {message}")
     
     def initialize(self, force_reinit: bool = False) -> bool:
         """
@@ -90,32 +93,40 @@ class UITranslator:
             True if successful, False otherwise
         """
         if self.is_initialized and not force_reinit:
+            self._log("Translator already initialized")
             return True
         
         if not TRANSLATOR_AVAILABLE:
-            self._log("Error: Translator modules not available")
+            self._log("Error: Translator modules not available", "error")
             return False
+        
+        self._log(f"Initializing translator with translation_id: {self.translation_id}")
         
         try:
             # Initialize the translation manager
+            self._log("Creating TranslationManager instance")
             self.translation_manager = TranslationManager()
             
             # Start a translation session if we have an ID
             if self.translation_id:
                 if self.translation_manager is not None:
+                    self._log(f"Starting translation session with ID: {self.translation_id}")
                     self.translation_manager.start_translation_session(self.translation_id)
-                    self._log(f"Translation session started with ID: {self.translation_id}")
+                    self._log("Translation session started successfully")
                 else:
-                    self._log("Failed to initialize translation manager")
+                    self._log("Failed to initialize translation manager", "error")
                     return False
             else:
-                self._log("No translation ID provided, session not started")
+                self._log("No translation ID provided, session not started", "warning")
             
             self.is_initialized = True
-            self._log(f"Translator initialized with ID: {self.translation_id}")
+            self._log(f"Translator successfully initialized with ID: {self.translation_id}")
             return True
         except Exception as e:
-            self._log(f"Error initializing translator: {e}", level="error")
+            self._log(f"Error initializing translator: {e}", "error")
+            # Print stack trace for debugging
+            import traceback
+            self._log(f"Stack trace: {traceback.format_exc()}", "error")
             return False
     
     def set_translation_id(self, translation_id: str) -> bool:
@@ -199,37 +210,64 @@ class UITranslator:
             List of dictionaries with translation results
         """
         if not self.is_initialized:
+            self._log("Translation manager not initialized. Attempting to initialize...", "warning")
             if not self.initialize():
+                self._log("Failed to initialize translation manager", "error")
                 return []
         
         if not modern_lines:
-            self._log("Error: Empty list of lines provided for translation")
+            self._log("Error: Empty list of lines provided for translation", "error")
             return []
             
         if self.translation_manager is None:
-            self._log("Error: Translation manager not initialized")
+            self._log("Error: Translation manager is None", "error")
             return []
         
         try:
-            self._log(f"Translating {len(modern_lines)} lines")
+            # Log count of lines before and after filtering
+            original_count = len(modern_lines)
+            self._log(f"Translating {original_count} lines")
             
             # Filter out empty lines
             filtered_lines = [line for line in modern_lines if line and line.strip()]
+            filtered_count = len(filtered_lines)
+            
+            if filtered_count < original_count:
+                self._log(f"Filtered out {original_count - filtered_count} empty lines")
             
             if not filtered_lines:
-                self._log("Error: All lines were empty after filtering")
+                self._log("Error: All lines were empty after filtering", "error")
                 return []
-                
+            
+            # Sample some lines for debugging
+            if filtered_lines:
+                sample_size = min(3, len(filtered_lines))
+                self._log(f"Sample of first {sample_size} lines to translate:")
+                for i in range(sample_size):
+                    self._log(f"  Line {i+1}: {filtered_lines[i][:50]}...")
+                    
             # Call the translation manager
+            self._log(f"Calling translation_manager.translate_group with {len(filtered_lines)} lines")
+            start_time = time.time()
+            
             results = self.translation_manager.translate_group(
                 modern_lines=filtered_lines,
                 use_hybrid_search=use_hybrid_search
             )
             
-            self._log(f"Translation completed for {len(results)} lines")
+            elapsed_time = time.time() - start_time
+            self._log(f"Translation completed for {len(results)}/{len(filtered_lines)} lines in {elapsed_time:.2f} seconds")
+            
+            # Log summary of results
+            if len(results) < len(filtered_lines):
+                self._log(f"Warning: {len(filtered_lines) - len(results)} lines failed to translate", "warning")
+            
             return results
         except Exception as e:
-            self._log(f"Error translating lines: {e}")
+            self._log(f"Error translating lines: {e}", "error")
+            # Print stack trace for debugging
+            import traceback
+            self._log(f"Stack trace: {traceback.format_exc()}", "error")
             return []
     
     def translate_file(
@@ -251,16 +289,21 @@ class UITranslator:
         Returns:
             Tuple of (success, output_path, lines_translated)
         """
+        # Enable more detailed logging for debugging
+        debug_mode = True
+        
         if not self.is_initialized:
+            self._log("Translation manager not initialized. Attempting to initialize...", "warning")
             if not self.initialize():
+                self._log("Failed to initialize translation manager", "error")
                 return False, "", 0
                 
         if not self.translation_id:
-            self._log("Error: No translation ID set for file translation")
+            self._log("Error: No translation ID set for file translation", "error")
             return False, "", 0
             
         if not os.path.exists(filepath):
-            self._log(f"Error: File not found: {filepath}")
+            self._log(f"Error: File not found: {filepath}", "error")
             return False, "", 0
         
         try:
@@ -281,17 +324,34 @@ class UITranslator:
                     json_path = os.path.join(existing_output_dir, f"{scene_id}.json")
                     
                     if os.path.exists(json_path):
+                        self._log(f"Loading existing translation from: {json_path}")
                         translated_lines, _ = load_translated_scene(json_path)
+                        self._log(f"Found {len(translated_lines)} existing translated lines")
                         return True, existing_output_dir, len(translated_lines)
                 
+                self._log("No existing translation file found despite scene being marked as translated", "warning")
                 return True, "", 0
             
+            # Log file size for debugging
+            file_size = os.path.getsize(filepath)
+            self._log(f"File size: {file_size} bytes")
+            
             # Parse the file to get dialogue lines
+            self._log("Parsing markdown scene file to extract dialogue lines...")
             modern_lines = parse_markdown_scene(filepath)
             
             if not modern_lines:
-                self._log("No dialogue lines found in file")
+                self._log("No dialogue lines found in file", "error")
                 return False, "", 0
+            
+            self._log(f"Extracted {len(modern_lines)} dialogue lines from file")
+            
+            # Log a sample of the lines for debugging
+            if debug_mode and modern_lines:
+                sample_size = min(3, len(modern_lines))
+                self._log(f"Sample of first {sample_size} lines:")
+                for i in range(sample_size):
+                    self._log(f"  Line {i+1}: {modern_lines[i][:50]}...")
             
             # Determine output directory
             actual_output_dir: str
@@ -303,46 +363,95 @@ class UITranslator:
             else:
                 actual_output_dir = output_dir
             
+            self._log(f"Using output directory: {actual_output_dir}")
+            
             # Now ensure_directory receives a string, not Optional[str]
             ensure_directory(actual_output_dir)
+            self._log("Output directory confirmed to exist")
             
             # Translate the lines
-            translated_lines = self.translate_lines(
-                modern_lines=modern_lines,
-                use_hybrid_search=use_hybrid_search
-            )
+            self._log(f"Starting translation of {len(modern_lines)} lines with hybrid_search={use_hybrid_search}")
             
-            if not translated_lines:
-                self._log("Translation failed - no lines translated")
+            # Check if translation_manager is properly initialized
+            if self.translation_manager is None:
+                self._log("Error: translation_manager is None", "error")
                 return False, "", 0
+                
+            # Add a progress indicator for long translations
+            progress_report_interval = max(1, len(modern_lines) // 10)  # Report progress every ~10%
+            
+            translated_lines = []
+            try:
+                # Try using translate_group for batch processing
+                self._log("Using batch translation with translate_group")
+                translated_lines = self.translate_lines(
+                    modern_lines=modern_lines,
+                    use_hybrid_search=use_hybrid_search
+                )
+            except Exception as batch_error:
+                self._log(f"Batch translation failed with error: {batch_error}", "error")
+                self._log("Attempting line-by-line translation as fallback...", "warning")
+                
+                # Fallback to line-by-line translation
+                translated_lines = []
+                for i, line in enumerate(modern_lines):
+                    try:
+                        # Report progress periodically
+                        if i % progress_report_interval == 0 or i == len(modern_lines) - 1:
+                            self._log(f"Translating line {i+1}/{len(modern_lines)}")
+                            
+                        result = self.translate_line(line, use_hybrid_search=use_hybrid_search)
+                        if result:
+                            translated_lines.append(result)
+                        else:
+                            self._log(f"Failed to translate line {i+1}: {line[:50]}...", "warning")
+                    except Exception as line_error:
+                        self._log(f"Error translating line {i+1}: {line_error}", "error")
+            
+            # Check translation results
+            if not translated_lines:
+                self._log("Translation failed - no lines translated", "error")
+                return False, "", 0
+            
+            self._log(f"Successfully translated {len(translated_lines)}/{len(modern_lines)} lines")
             
             # Save the translation using SceneSaver
             if TRANSLATOR_AVAILABLE:
-                saver = SceneSaver(translation_id=self.translation_id, base_output_dir=actual_output_dir)
-                saver.save_scene(
-                    act=act,
-                    scene=scene,
-                    translated_lines=translated_lines,
-                    original_lines=modern_lines
-                )
-                
-                # Update scene info in the session
-                update_scene_info(
-                    translation_id=self.translation_id,
-                    act=act,
-                    scene=scene,
-                    filename=os.path.basename(filepath),
-                    line_count=len(translated_lines)
-                )
-                
-                self._log(f"Translation completed and saved to {actual_output_dir}")
-                return True, actual_output_dir, len(translated_lines)
+                self._log("Initializing SceneSaver to save translation results")
+                try:
+                    saver = SceneSaver(translation_id=self.translation_id, base_output_dir=actual_output_dir)
+                    self._log(f"Saving translated scene: Act {act}, Scene {scene}")
+                    saver.save_scene(
+                        act=act,
+                        scene=scene,
+                        translated_lines=translated_lines,
+                        original_lines=modern_lines
+                    )
+                    
+                    # Update scene info in the session
+                    self._log("Updating session information")
+                    update_scene_info(
+                        translation_id=self.translation_id,
+                        act=act,
+                        scene=scene,
+                        filename=os.path.basename(filepath),
+                        line_count=len(translated_lines)
+                    )
+                    
+                    self._log(f"Translation completed successfully. Saved to {actual_output_dir}")
+                    return True, actual_output_dir, len(translated_lines)
+                except Exception as save_error:
+                    self._log(f"Error saving translation: {save_error}", "error")
+                    return False, "", 0
             else:
-                self._log("Error: Translator modules not available for saving")
+                self._log("Error: Translator modules not available for saving", "error")
                 return False, "", 0
                 
         except Exception as e:
-            self._log(f"Error translating file: {e}")
+            self._log(f"Unexpected error in translate_file: {e}", "error")
+            # Print stack trace for debugging
+            import traceback
+            self._log(f"Stack trace: {traceback.format_exc()}", "error")
             return False, "", 0
     
     def translate_uploaded_file(

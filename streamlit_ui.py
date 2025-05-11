@@ -1,7 +1,9 @@
 import streamlit as st
 import uuid
 import os
+import re
 import json
+import time
 from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
 from datetime import datetime
@@ -15,7 +17,22 @@ from modules.translator.scene_saver import SceneSaver
 from modules.utils.logger import CustomLogger
 from modules.ui.playwright.ui_playwright import get_ui_playwright
 from modules.ui.ui_translator import get_ui_translator
-from modules.ui.file_helper import load_text_from_file, save_text_to_file
+
+from modules.ui.file_helper import (
+    load_text_from_file, 
+    save_text_to_file, 
+    ensure_directory,
+    extract_act_scene_from_filename,
+    parse_markdown_scene
+)
+
+from modules.ui.session_manager import (
+    get_session_info,
+    update_scene_info,
+    is_scene_translated,
+    create_new_session,
+    get_all_sessions 
+)
 
 # Initialize session state
 if "mode" not in st.session_state:
@@ -38,6 +55,12 @@ if "generated_full_play" not in st.session_state:
     st.session_state.generated_full_play = False
 if "last_generated_scene" not in st.session_state:
     st.session_state.last_generated_scene = None
+
+# Initialize session state for translation control
+if "translation_active" not in st.session_state:
+    st.session_state.translation_active = False
+if "cancel_requested" not in st.session_state:
+    st.session_state.cancel_requested = False
 
 # Set page config
 st.set_page_config(
@@ -87,25 +110,29 @@ def generate_new_translation_id():
     random_part = str(uuid.uuid4())[:6]
     return f"trans_{timestamp}_{random_part}"
 
-# Initialize session state
-if "mode" not in st.session_state:
-    st.session_state.mode = "Playwright"
-if "translation_id" not in st.session_state:
-    st.session_state.translation_id = None
-if "current_line_index" not in st.session_state:
-    st.session_state.current_line_index = 0
-if "translated_lines" not in st.session_state:
-    st.session_state.translated_lines = []
-if "modern_lines" not in st.session_state:
-    st.session_state.modern_lines = []
-
 # Sidebar - Mode Selection
 with st.sidebar:
     st.title("Shakespeare AI")
     
     mode = st.radio("Mode", ["Playwright", "Translator"])
-    st.session_state.mode = mode
-    
+
+    # Check if mode has changed and update session state
+    if "mode" in st.session_state and st.session_state.mode != mode:
+        # Mode has changed - clean up previous mode resources if needed
+        st.session_state.mode = mode
+        
+        # Initialize appropriate mode
+        if mode == "Translator":
+            st.session_state.logger = CustomLogger("Translator_UI", log_level="DEBUG")
+            st.session_state.logger.info(f"Switching to Translator mode")
+            
+            # Clear any previous translator state
+            if "translation_manager" in st.session_state:
+                del st.session_state.translation_manager
+    else:
+        # First time or no change
+        st.session_state.mode = mode    
+
     st.divider()
     
     if mode == "Playwright":
@@ -175,8 +202,22 @@ with st.sidebar:
         
         if translation_option == "Create New":
             if st.button("Generate New Translation ID"):
-                st.session_state.translation_id = generate_new_translation_id()
-                st.success(f"New Translation ID: {st.session_state.translation_id}")
+                # Create a new ID
+                new_id = generate_new_translation_id()
+                st.session_state.translation_id = new_id
+                
+                # Log the new ID creation
+                if "logger" in st.session_state:
+                    st.session_state.logger.info(f"Created new Translation ID: {new_id}")
+                
+                # Clear any existing translator in session
+                if "ui_translator" in st.session_state:
+                    del st.session_state.ui_translator
+                    
+                st.success(f"New Translation ID: {new_id}")
+                
+                # Force a rerun to update UI
+                st.rerun()
         else:
             # Load existing translation IDs
             existing_translations = load_existing_translation_ids()
@@ -195,8 +236,24 @@ with st.sidebar:
                 )
                 
                 if selected_translation:
-                    st.session_state.translation_id = translation_options[selected_translation]
-                    st.info(f"Using Translation ID: {st.session_state.translation_id}")
+                    selected_id = translation_options[selected_translation]
+                    
+                    # Only update if ID has changed
+                    if st.session_state.get("translation_id") != selected_id:
+                        st.session_state.translation_id = selected_id
+                        
+                        # Log the ID selection
+                        if "logger" in st.session_state:
+                            st.session_state.logger.info(f"Selected Translation ID: {selected_id}")
+                        
+                        # Clear any existing translator in session
+                        if "ui_translator" in st.session_state:
+                            del st.session_state.ui_translator
+                            
+                        st.info(f"Using Translation ID: {selected_id}")
+                        
+                        # Force a rerun to update UI with the new ID
+                        st.rerun()
 
 # Main content area
 if st.session_state.mode == "Playwright":
@@ -249,8 +306,16 @@ if st.session_state.mode == "Playwright":
                         # Get UI playwright instance
                         playwright = get_ui_playwright(logger=st.session_state.get("logger"))
                         
+                        # Update the configuration
+                        config = {
+                            "model_provider": model_provider,
+                            "model_name": model_name,
+                            "temperature": creativity
+                        }
+                        playwright.update_playwright_config(config)
+                        
                         # Create the project
-                        project_id = playwright.create_play_project(
+                        project_id = playwright.manage_project_creation(
                             title=play_title,
                             thematic_guidelines=thematic_guidelines,
                             character_voices=character_voices
@@ -272,7 +337,7 @@ if st.session_state.mode == "Playwright":
         if not st.session_state.get("current_project_id"):
             # No current project, allow selection from existing projects
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
-            projects = playwright.list_projects()
+            projects = playwright.get_project_list()
             
             if not projects:
                 st.warning("No projects found. Create a project first.")
@@ -296,7 +361,7 @@ if st.session_state.mode == "Playwright":
 
             # Get project data to show metadata and available characters
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
-            project_data = playwright.get_project_data(project_id)
+            project_data = playwright.get_project_details(project_id)
             
             if project_data:
                 st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
@@ -350,7 +415,7 @@ if st.session_state.mode == "Playwright":
                     else:
                         with st.spinner("Adding scene to project..."):
                             try:
-                                success = playwright.add_scene_to_project(
+                                success = playwright.manage_scene_addition(
                                     project_id=project_id,
                                     act=act,
                                     scene=scene,
@@ -375,7 +440,7 @@ if st.session_state.mode == "Playwright":
         if not st.session_state.get("current_project_id"):
             # No current project, allow selection from existing projects
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
-            projects = playwright.list_projects()
+            projects = playwright.get_project_list()
             
             if not projects:
                 st.warning("No projects found. Create a project first.")
@@ -401,7 +466,7 @@ if st.session_state.mode == "Playwright":
 
             # Get project data
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
-            project_data = playwright.get_project_data(project_id)
+            project_data = playwright.get_project_details(project_id)
             
             if project_data:
                 st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
@@ -435,7 +500,7 @@ if st.session_state.mode == "Playwright":
                             # Generate all scenes
                             with st.spinner("Generating all scenes... This may take a while."):
                                 try:
-                                    success, result = playwright.generate_full_project(
+                                    success, result = playwright.generate_complete_project(
                                         project_id=project_id,
                                         length_option=length_option
                                     )
@@ -491,7 +556,7 @@ if st.session_state.mode == "Playwright":
                                     progress_bar.progress(30)
                                     
                                     # This part is actually doing the work
-                                    success, content, scene_path = playwright.generate_project_scene(
+                                    success, content, scene_path = playwright.generate_single_scene(
                                         project_id=project_id,
                                         act=scene_data['act'],
                                         scene=scene_data['scene'],
@@ -556,7 +621,7 @@ if st.session_state.mode == "Playwright":
 
             # Get project data
             playwright = get_ui_playwright(logger=st.session_state.get("logger"))
-            project_data = playwright.get_project_data(project_id)
+            project_data = playwright.get_project_details(project_id)
             
             if project_data:
                 st.subheader(f"Project: {project_data.get('title', 'Unnamed')}")
@@ -575,7 +640,7 @@ if st.session_state.mode == "Playwright":
                     if st.button("Export Full Play"):
                         with st.spinner(f"Exporting play as {export_format}..."):
                             try:
-                                success, output_path = playwright.save_full_play_to_file(
+                                success, output_path = playwright.export_full_play_file(
                                     project_id=project_id,
                                     output_format=export_format.lower()
                                 )
@@ -609,7 +674,7 @@ if st.session_state.mode == "Playwright":
                     if last_scene and st.button("Export Scene"):
                         with st.spinner(f"Exporting scene as {export_format}..."):
                             try:
-                                success, output_path = playwright.save_scene_to_file(
+                                success, output_path = playwright.export_scene_file(
                                     project_id=project_id,
                                     act=last_scene['act'],
                                     scene=last_scene['scene'],
@@ -642,10 +707,43 @@ if st.session_state.mode == "Playwright":
 elif st.session_state.mode == "Translator":
     st.title("Translator Mode")
     
+    # Ensure we have a logger for translator mode
+    if "logger" not in st.session_state:
+        st.session_state.logger = CustomLogger("Translator_UI", log_level="DEBUG")
+        st.session_state.logger.info("Initializing Translator mode logger")
+    
     if not st.session_state.translation_id:
         st.warning("Please create or select a Translation ID in the sidebar first.")
     else:
         st.info(f"Using Translation ID: {st.session_state.translation_id}")
+        
+        # Explicitly initialize UITranslator with the current translation ID and logger
+        if "ui_translator" not in st.session_state:
+            with st.spinner("Initializing translator..."):
+                try:
+                    # Create a dedicated file logger for debugging
+                    debug_logger = CustomLogger("Translator_Debug", log_level="DEBUG", 
+                                              log_file=f"logs/translator_debug_{st.session_state.translation_id}.log")
+                    debug_logger.info(f"Initializing UITranslator with ID: {st.session_state.translation_id}")
+                    
+                    # Initialize UITranslator
+                    ui_translator = get_ui_translator(
+                        translation_id=st.session_state.translation_id,
+                        logger=debug_logger
+                    )
+                    
+                    # Ensure initialization is complete
+                    success = ui_translator.initialize()
+                    if success:
+                        st.session_state.ui_translator = ui_translator
+                        debug_logger.info("UITranslator successfully initialized")
+                    else:
+                        st.error("Failed to initialize translator. Check the logs for details.")
+                        debug_logger.error("Failed to initialize UITranslator")
+                except Exception as e:
+                    st.error(f"Error initializing translator: {e}")
+                    if "logger" in st.session_state:
+                        st.session_state.logger.error(f"Error initializing UITranslator: {e}")
         
         # Translation mode selection
         translation_mode = st.radio(
@@ -668,37 +766,331 @@ elif st.session_state.mode == "Translator":
                 # Output directory selection
                 output_dir = st.text_input("Output Directory", "outputs/translated_play")
                 
-                if st.button("Start Translation"):
-                    with st.spinner("Translating play..."):
+                # Make sure we have a ui_translator in the session
+                if "ui_translator" not in st.session_state:
+                    st.error("Translator not initialized. Please refresh the page and try again.")
+                # Check if translation is already active
+                elif st.session_state.translation_active:
+                    # Display progress information
+                    st.info("Translation is in progress...")
+                    
+                    # Display cancel button
+                    if st.button("Cancel Translation"):
+                        st.session_state.cancel_requested = True
+                        st.warning("Cancel requested. Translation will stop after current line completes...")
+                elif st.button("Start Translation"):
+                    # Reset cancellation flag
+                    st.session_state.cancel_requested = False
+                    # Set active flag
+                    st.session_state.translation_active = True
+                    
+                    # Create a dedicated logger for full play translation
+                    debug_logger = CustomLogger("Full_Play_Translation", log_level="DEBUG", 
+                                            log_file=f"logs/full_play_{st.session_state.translation_id}.log")
+                    debug_logger.info(f"Starting full play translation for file: {uploaded_file.name}")
+                    
+                    with st.spinner("Translating play... This may take several minutes."):
                         try:
                             # Save uploaded file temporarily
-                            with open("temp_play.md", "wb") as f:
+                            temp_dir = "temp_uploads"
+                            os.makedirs(temp_dir, exist_ok=True)
+                            temp_path = os.path.join(temp_dir, uploaded_file.name)
+                            
+                            with open(temp_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
                             
-                            # This is where you would call your translation module
-                            # Placeholder for actual implementation
-                            st.success("Translation complete!")
+                            debug_logger.info(f"Saved uploaded file to temporary location: {temp_path}")
+                            debug_logger.info(f"File size: {os.path.getsize(temp_path)} bytes")
                             
-                            # Show summary of translation
-                            st.subheader("Translation Summary")
-                            st.write("Acts: 5, Scenes: 25, Lines Translated: 1200")
+                            # Use the ui_translator from the session state
+                            ui_translator = st.session_state.ui_translator
                             
-                            # Option to view translated content
-                            if st.button("View Translated Content"):
-                                # Placeholder for displaying content
-                                st.text_area("Translated Play (Excerpt)", 
-                                             "Thy words doth flow like gentle streams...", 
-                                             height=200)
+                            # Create containers for progress display
+                            progress_bar = st.progress(0)
+                            status_message = st.empty()
+                            cancel_button_container = st.empty()
+                            
+                            # Add a cancel button inside the processing loop
+                            if cancel_button_container.button("Stop Translation", key="cancel_during_process"):
+                                st.session_state.cancel_requested = True
+                                status_message.warning("Cancellation requested. Finishing current processing...")
+                            
+                            status_message.info("Analyzing play file...")
+                            progress_bar.progress(10)
+                            
+                            # Check for cancellation
+                            if st.session_state.cancel_requested:
+                                status_message.warning("Translation cancelled by user")
+                                debug_logger.info("Translation cancelled by user")
+                                st.session_state.translation_active = False
+                                st.session_state.cancel_requested = False
+                                st.rerun()
+                            
+                            # Determine if it's a single scene or multiple scenes
+                            debug_logger.info("Analyzing file to determine if it's a single scene or full play")
+                            
+                            # ... (rest of analysis code)
+                            
+                            # Ensure translator is initialized
+                            if not ui_translator.is_initialized:
+                                debug_logger.warning("Translator not initialized. Attempting to initialize...")
+                                success = ui_translator.initialize()
+                                if not success:
+                                    st.error("Failed to initialize translator. Please try again.")
+                                    debug_logger.error("Failed to initialize translator")
+                                    st.session_state.translation_active = False
+                                    st.stop()
+                            
+                            # Update status before translation
+                            status_message.info("Starting translation... (Click 'Stop Translation' to cancel)")
+                            progress_bar.progress(30)
+                            
+                            # Check for cancellation again
+                            if st.session_state.cancel_requested:
+                                status_message.warning("Translation cancelled by user")
+                                debug_logger.info("Translation cancelled by user")
+                                st.session_state.translation_active = False
+                                st.session_state.cancel_requested = False
+                                st.rerun()
+                            
+                            # Custom translation process with cancellation support
+                            # Instead of directly calling translate_file, we'll implement a cancellable version
+                            
+                            # Parse the file to get dialogue lines
+                            modern_lines = parse_markdown_scene(temp_path)
+                            debug_logger.info(f"Extracted {len(modern_lines)} dialogue lines from file")
+                            
+                            if not modern_lines:
+                                status_message.error("No dialogue lines found in file")
+                                debug_logger.error("No dialogue lines found in file")
+                                st.session_state.translation_active = False
+                                st.stop()
+                            
+                            # Extract act/scene from filename
+                            act, scene = extract_act_scene_from_filename(temp_path)
+                            
+                            # Translate lines with cancellation support
+                            translated_lines = []
+                            for i, line in enumerate(modern_lines):
+                                # Check for cancellation request
+                                if st.session_state.cancel_requested:
+                                    status_message.warning(f"Translation cancelled by user after {i} lines")
+                                    debug_logger.info(f"Translation cancelled by user after {i} lines")
+                                    break
+                                
+                                # Update progress
+                                progress = min(30 + int(60 * (i / len(modern_lines))), 90)
+                                progress_bar.progress(progress)
+                                status_message.info(f"Translating line {i+1} of {len(modern_lines)}...")
+                                
+                                # Translate the line
+                                try:
+                                    result = ui_translator.translate_line(line, use_hybrid_search=True)
+                                    if result:
+                                        translated_lines.append(result)
+                                        debug_logger.info(f"Translated line {i+1}: success")
+                                    else:
+                                        debug_logger.warning(f"Failed to translate line {i+1}")
+                                except Exception as line_error:
+                                    debug_logger.error(f"Error translating line {i+1}: {line_error}")
+                            
+                            # If we have any translated lines, save them
+                            if translated_lines:
+                                debug_logger.info(f"Saving {len(translated_lines)} translated lines")
+                                status_message.info("Saving translation results...")
+                                progress_bar.progress(95)
+                                
+                                # Initialize SceneSaver and save results
+                                saver = SceneSaver(translation_id=st.session_state.translation_id, base_output_dir=output_dir)
+                                saver.save_scene(
+                                    act=act,
+                                    scene=scene,
+                                    translated_lines=translated_lines,
+                                    original_lines=modern_lines[:len(translated_lines)]  # Match lengths
+                                )
+                                
+                                # Update scene info
+                                update_scene_info(
+                                    translation_id=st.session_state.translation_id,
+                                    act=act,
+                                    scene=scene,
+                                    filename=os.path.basename(temp_path),
+                                    line_count=len(translated_lines)
+                                )
+                                
+                                progress_bar.progress(100)
+                                
+                                if st.session_state.cancel_requested:
+                                    status_message.warning(f"Translation cancelled after completing {len(translated_lines)} of {len(modern_lines)} lines")
+                                    debug_logger.info(f"Partial translation saved: {len(translated_lines)} of {len(modern_lines)} lines")
+                                else:
+                                    status_message.success(f"Translation complete! Translated {len(translated_lines)} lines.")
+                                
+                                st.success(f"Translation saved to: {output_dir}")
+                                
+                                # Display preview
+                                try:
+                                    scene_id = f"act_{act.lower()}_scene_{scene.lower()}"
+                                    md_path = os.path.join(output_dir, f"{scene_id}.md")
+                                    
+                                    if os.path.exists(md_path):
+                                        with open(md_path, 'r', encoding='utf-8') as f:
+                                            md_content = f.read()
+                                        st.markdown("### Translation Preview (First 500 characters)")
+                                        st.text_area("Preview", md_content[:500] + "...", height=200)
+                                        
+                                        # Add download button
+                                        with open(md_path, "r", encoding="utf-8") as f:
+                                            st.download_button(
+                                                label="Download Translation",
+                                                data=f.read(),
+                                                file_name=f"shakespeare_translation_{scene_id}.md",
+                                                mime="text/markdown"
+                                            )
+                                except Exception as preview_error:
+                                    debug_logger.error(f"Error displaying preview: {preview_error}")
+                            else:
+                                status_message.error("No lines were successfully translated")
+                                debug_logger.error("No lines were successfully translated")
                         
                         except Exception as e:
                             st.error(f"Error translating play: {e}")
-                            logger.error(f"Error in full play translation: {e}")
+                            import traceback
+                            debug_logger.error(f"Exception during translation: {e}")
+                            debug_logger.error(f"Stack trace: {traceback.format_exc()}")
+                        
+                        finally:
+                            # Reset translation state
+                            st.session_state.translation_active = False
+                            st.session_state.cancel_requested = False
+                            
+                            # Clean up temp file
+                            try:
+                                if 'temp_path' in locals() and os.path.exists(temp_path):
+                                    os.remove(temp_path)
+                                    debug_logger.info(f"Removed temporary file: {temp_path}")
+                            except Exception as cleanup_error:
+                                debug_logger.error(f"Error cleaning up temporary file: {cleanup_error}")
+        
+        if translation_mode == "Full Scene":
+            st.subheader("Full Scene Translation")
+            
+            # File uploader for scene script
+            uploaded_file = st.file_uploader("Upload Scene Script (Markdown)", type="md")
+            
+            if uploaded_file:
+                st.success(f"Uploaded: {uploaded_file.name}")
+                
+                # Act and scene selection
+                col1, col2 = st.columns(2)
+                with col1:
+                    act = st.text_input("Act Number", "I")
+                with col2:
+                    scene = st.text_input("Scene Number", "1")
+                
+                # Output directory
+                output_dir = st.text_input("Output Directory", "outputs/translated_scenes")
+                
+                # Make sure we have a ui_translator in the session
+                if "ui_translator" not in st.session_state:
+                    st.error("Translator not initialized. Please refresh the page and try again.")
+                elif st.button("Start Translation"):
+                    # Get the logger for detailed logging
+                    debug_logger = CustomLogger("Scene_Translation", log_level="DEBUG", 
+                                            log_file=f"logs/scene_translation_{st.session_state.translation_id}.log")
+                    debug_logger.info(f"Starting scene translation for Act {act}, Scene {scene}")
+                    
+                    with st.spinner("Translating scene... This may take several minutes."):
+                        try:
+                            # Save uploaded file temporarily
+                            temp_dir = "temp_uploads"
+                            os.makedirs(temp_dir, exist_ok=True)
+                            temp_path = os.path.join(temp_dir, uploaded_file.name)
+                            
+                            with open(temp_path, "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                            
+                            debug_logger.info(f"Saved uploaded file to temporary location: {temp_path}")
+                            debug_logger.info(f"File size: {os.path.getsize(temp_path)} bytes")
+                            
+                            # Use the ui_translator from the session state
+                            ui_translator = st.session_state.ui_translator
+                            
+                            # Make sure translator is initialized
+                            if not ui_translator.is_initialized:
+                                debug_logger.warning("Translator not initialized. Attempting to initialize...")
+                                success = ui_translator.initialize()
+                                if not success:
+                                    st.error("Failed to initialize translator. Please try again.")
+                                    debug_logger.error("Failed to initialize translator")
+                                    st.stop()
+                            
+                            # Log the state of the translator before translation
+                            debug_logger.info(f"Translator state: initialized={ui_translator.is_initialized}, " +
+                                            f"translation_id={ui_translator.translation_id}")
+                            
+                            # Create a progress bar for visual feedback
+                            progress_bar = st.progress(0)
+                            status_message = st.empty()
+                            
+                            # Update status message to show activity
+                            status_message.info("Reading and parsing scene file...")
+                            progress_bar.progress(10)
+                            
+                            # Translate the file
+                            debug_logger.info("Calling translate_file method")
+                            
+                            # Log start time for performance tracking
+                            start_time = time.time()
+                            
+                            success, result_dir, line_count = ui_translator.translate_file(
+                                filepath=temp_path,
+                                output_dir=output_dir,
+                                force_retranslate=True,  # Force retranslation for testing
+                                use_hybrid_search=True
+                            )
+                            
+                            # Log completion time
+                            elapsed_time = time.time() - start_time
+                            debug_logger.info(f"Translation completed in {elapsed_time:.2f} seconds")
+                            
+                            # Update UI based on result
+                            if success:
+                                progress_bar.progress(100)
+                                status_message.success(f"Translation complete! Translated {line_count} lines.")
+                                st.success(f"Translation saved to: {result_dir}")
+                                
+                                # Try to read and display part of the translation
+                                try:
+                                    scene_id = f"act_{act.lower()}_scene_{scene.lower()}"
+                                    json_path = os.path.join(result_dir, f"{scene_id}.json")
+                                    md_path = os.path.join(result_dir, f"{scene_id}.md")
+                                    
+                                    if os.path.exists(md_path):
+                                        with open(md_path, 'r', encoding='utf-8') as f:
+                                            md_content = f.read()
+                                        st.markdown("### Translation Preview (Markdown)")
+                                        st.text_area("Preview", md_content[:500] + "...", height=200)
+                                except Exception as preview_error:
+                                    debug_logger.error(f"Error displaying preview: {preview_error}")
+                            else:
+                                progress_bar.progress(0)
+                                status_message.error("Translation failed")
+                                st.error(f"Error translating scene: {result_dir}")
+                                debug_logger.error(f"Translation failed. Error message: {result_dir}")
+                        
+                        except Exception as e:
+                            st.error(f"Error translating scene: {e}")
+                            import traceback
+                            debug_logger.error(f"Exception during translation: {e}")
+                            debug_logger.error(f"Stack trace: {traceback.format_exc()}")
                         
                         finally:
                             # Clean up temp file
-                            if os.path.exists("temp_play.md"):
-                                os.remove("temp_play.md")
-        
+                            if os.path.exists(temp_path):
+                                os.remove(temp_path)
+                                debug_logger.info(f"Removed temporary file: {temp_path}")
+
         elif translation_mode == "Full Scene":
             st.subheader("Full Scene Translation")
             
@@ -718,40 +1110,205 @@ elif st.session_state.mode == "Translator":
                 # Output directory
                 output_dir = st.text_input("Output Directory", "outputs/translated_scenes")
                 
-                if st.button("Start Translation"):
-                    with st.spinner("Translating scene..."):
+                # Make sure we have a ui_translator in the session
+                if "ui_translator" not in st.session_state:
+                    st.error("Translator not initialized. Please refresh the page and try again.")
+                # Check if translation is already active
+                elif st.session_state.translation_active:
+                    # Display progress information
+                    st.info("Translation is in progress...")
+                    
+                    # Display cancel button
+                    if st.button("Cancel Translation"):
+                        st.session_state.cancel_requested = True
+                        st.warning("Cancel requested. Translation will stop after current line completes...")
+                elif st.button("Start Translation"):
+                    # Reset cancellation flag
+                    st.session_state.cancel_requested = False
+                    # Set active flag
+                    st.session_state.translation_active = True
+                    
+                    # Get the logger for detailed logging
+                    debug_logger = CustomLogger("Scene_Translation", log_level="DEBUG", 
+                                            log_file=f"logs/scene_translation_{st.session_state.translation_id}.log")
+                    debug_logger.info(f"Starting scene translation for Act {act}, Scene {scene}")
+                    
+                    with st.spinner("Translating scene... This may take several minutes."):
                         try:
                             # Save uploaded file temporarily
-                            with open("temp_scene.md", "wb") as f:
+                            temp_dir = "temp_uploads"
+                            os.makedirs(temp_dir, exist_ok=True)
+                            temp_path = os.path.join(temp_dir, uploaded_file.name)
+                            
+                            with open(temp_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
                             
-                            # This is where you would call your translation module
-                            # Placeholder for actual implementation
-                            # Actual code would read the file, extract dialog, translate it
+                            debug_logger.info(f"Saved uploaded file to temporary location: {temp_path}")
+                            debug_logger.info(f"File size: {os.path.getsize(temp_path)} bytes")
                             
-                            st.success("Translation complete!")
+                            # Use the ui_translator from the session state
+                            ui_translator = st.session_state.ui_translator
                             
-                            # Show summary of translation
-                            st.subheader("Translation Summary")
-                            st.write(f"Act {act}, Scene {scene}")
-                            st.write("Lines Translated: 50")
+                            # Create containers for progress display
+                            progress_bar = st.progress(0)
+                            status_message = st.empty()
+                            cancel_button_container = st.empty()
                             
-                            # Option to view translated content
-                            if st.button("View Translated Content"):
-                                # Placeholder for displaying content
-                                st.text_area("Translated Scene (Excerpt)", 
-                                            "Thy words doth flow like gentle streams...", 
-                                            height=200)
+                            # Add a cancel button inside the processing loop
+                            if cancel_button_container.button("Stop Translation", key="cancel_scene_process"):
+                                st.session_state.cancel_requested = True
+                                status_message.warning("Cancellation requested. Finishing current processing...")
+                            
+                            status_message.info("Reading and parsing scene file...")
+                            progress_bar.progress(10)
+                            
+                            # Check for cancellation
+                            if st.session_state.cancel_requested:
+                                status_message.warning("Translation cancelled by user")
+                                debug_logger.info("Translation cancelled by user")
+                                st.session_state.translation_active = False
+                                st.session_state.cancel_requested = False
+                                st.rerun()
+                            
+                            # Make sure translator is initialized
+                            if not ui_translator.is_initialized:
+                                debug_logger.warning("Translator not initialized. Attempting to initialize...")
+                                success = ui_translator.initialize()
+                                if not success:
+                                    st.error("Failed to initialize translator. Please try again.")
+                                    debug_logger.error("Failed to initialize translator")
+                                    st.session_state.translation_active = False
+                                    st.stop()
+                            
+                            # Log the state of the translator before translation
+                            debug_logger.info(f"Translator state: initialized={ui_translator.is_initialized}, " +
+                                            f"translation_id={ui_translator.translation_id}")
+                            
+                            # Parse the file to get dialogue lines
+                            modern_lines = parse_markdown_scene(temp_path)
+                            debug_logger.info(f"Extracted {len(modern_lines)} dialogue lines from file")
+                            
+                            if not modern_lines:
+                                status_message.error("No dialogue lines found in file")
+                                debug_logger.error("No dialogue lines found in file")
+                                st.session_state.translation_active = False
+                                st.stop()
+                            
+                            # Update status message
+                            status_message.info("Starting translation... (Click 'Stop Translation' to cancel)")
+                            progress_bar.progress(20)
+                            
+                            # Check for cancellation again
+                            if st.session_state.cancel_requested:
+                                status_message.warning("Translation cancelled by user")
+                                debug_logger.info("Translation cancelled by user")
+                                st.session_state.translation_active = False
+                                st.session_state.cancel_requested = False
+                                st.rerun()
+                            
+                            # Translate lines with cancellation support
+                            translated_lines = []
+                            for i, line in enumerate(modern_lines):
+                                # Check for cancellation request
+                                if st.session_state.cancel_requested:
+                                    status_message.warning(f"Translation cancelled by user after {i} lines")
+                                    debug_logger.info(f"Translation cancelled by user after {i} lines")
+                                    break
+                                
+                                # Update progress
+                                progress = min(30 + int(60 * (i / len(modern_lines))), 90)
+                                progress_bar.progress(progress)
+                                status_message.info(f"Translating line {i+1} of {len(modern_lines)}...")
+                                
+                                # Translate the line
+                                try:
+                                    result = ui_translator.translate_line(line, use_hybrid_search=True)
+                                    if result:
+                                        translated_lines.append(result)
+                                        debug_logger.info(f"Translated line {i+1}: success")
+                                    else:
+                                        debug_logger.warning(f"Failed to translate line {i+1}")
+                                except Exception as line_error:
+                                    debug_logger.error(f"Error translating line {i+1}: {line_error}")
+                            
+                            # If we have any translated lines, save them
+                            if translated_lines:
+                                debug_logger.info(f"Saving {len(translated_lines)} translated lines")
+                                status_message.info("Saving translation results...")
+                                progress_bar.progress(95)
+                                
+                                # Initialize SceneSaver and save results
+                                saver = SceneSaver(translation_id=st.session_state.translation_id, base_output_dir=output_dir)
+                                saver.save_scene(
+                                    act=act,
+                                    scene=scene,
+                                    translated_lines=translated_lines,
+                                    original_lines=modern_lines[:len(translated_lines)]  # Match lengths
+                                )
+                                
+                                # Update scene info
+                                update_scene_info(
+                                    translation_id=st.session_state.translation_id,
+                                    act=act,
+                                    scene=scene,
+                                    filename=os.path.basename(temp_path),
+                                    line_count=len(translated_lines)
+                                )
+                                
+                                progress_bar.progress(100)
+                                
+                                if st.session_state.cancel_requested:
+                                    status_message.warning(f"Translation cancelled after completing {len(translated_lines)} of {len(modern_lines)} lines")
+                                    debug_logger.info(f"Partial translation saved: {len(translated_lines)} of {len(modern_lines)} lines")
+                                else:
+                                    status_message.success(f"Translation complete! Translated {len(translated_lines)} lines.")
+                                
+                                st.success(f"Translation saved to: {output_dir}")
+                                
+                                # Display preview
+                                try:
+                                    scene_id = f"act_{act.lower()}_scene_{scene.lower()}"
+                                    md_path = os.path.join(output_dir, f"{scene_id}.md")
+                                    
+                                    if os.path.exists(md_path):
+                                        with open(md_path, 'r', encoding='utf-8') as f:
+                                            md_content = f.read()
+                                        st.markdown("### Translation Preview (First 500 characters)")
+                                        st.text_area("Preview", md_content[:500] + "...", height=200)
+                                        
+                                        # Add download button
+                                        with open(md_path, "r", encoding="utf-8") as f:
+                                            st.download_button(
+                                                label="Download Translation",
+                                                data=f.read(),
+                                                file_name=f"shakespeare_translation_{scene_id}.md",
+                                                mime="text/markdown"
+                                            )
+                                except Exception as preview_error:
+                                    debug_logger.error(f"Error displaying preview: {preview_error}")
+                            else:
+                                status_message.error("No lines were successfully translated")
+                                debug_logger.error("No lines were successfully translated")
                         
                         except Exception as e:
                             st.error(f"Error translating scene: {e}")
-                            logger.error(f"Error in full scene translation: {e}")
+                            import traceback
+                            debug_logger.error(f"Exception during translation: {e}")
+                            debug_logger.error(f"Stack trace: {traceback.format_exc()}")
                         
                         finally:
+                            # Reset translation state
+                            st.session_state.translation_active = False
+                            st.session_state.cancel_requested = False
+                            
                             # Clean up temp file
-                            if os.path.exists("temp_scene.md"):
-                                os.remove("temp_scene.md")
-        
+                            try:
+                                if 'temp_path' in locals() and os.path.exists(temp_path):
+                                    os.remove(temp_path)
+                                    debug_logger.info(f"Removed temporary file: {temp_path}")
+                            except Exception as cleanup_error:
+                                debug_logger.error(f"Error cleaning up temporary file: {cleanup_error}")
+
         elif translation_mode == "Section":
             st.subheader("Section Translation")
             

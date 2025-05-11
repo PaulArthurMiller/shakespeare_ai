@@ -2,11 +2,13 @@ import json
 import os
 import importlib.util
 import re
+from dotenv import load_dotenv
 from typing import Dict, Any, List, Optional, Union
 from modules.utils.logger import CustomLogger
 from openai import OpenAI
 from anthropic import Anthropic
 
+load_dotenv()
 
 class StoryExpander:
     def __init__(

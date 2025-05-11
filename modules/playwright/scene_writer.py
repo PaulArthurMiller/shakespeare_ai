@@ -1,11 +1,13 @@
 import os
 import json
+from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
 from modules.utils.logger import CustomLogger
 from openai import OpenAI
 from anthropic import Anthropic
 import importlib.util
 
+load_dotenv()
 
 class SceneWriter:
     def __init__(

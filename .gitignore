@@ -63,6 +63,7 @@ data/processed_chunks/*
 data/processed_texts/*
 data/line_corpus/*
 data/modern_play/*
+data/play_projects/*
 data/prompts/*
 embeddings/chromadb_vectors/**/*.*
 outputs/test_run/*
@@ -74,13 +75,14 @@ outputs/translated_scenes/*
 *.jpg
 *.pdf
 *.json
+*.zip
 
 # JSON and exceptions
 -*.json
 +*.json
 !config/*.json
-!data/line_corpus/shakespeare_line_corpus.json
 !outputs/parallel_play.json
+!data/processed_chunks/README.md
 
 # Exceptions
 !requirements.txt

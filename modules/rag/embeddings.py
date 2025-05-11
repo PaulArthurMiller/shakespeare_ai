@@ -1,8 +1,11 @@
 import os
 import json
 import openai
+from dotenv import load_dotenv
 from typing import List, Dict, Any
 from modules.utils.logger import CustomLogger
+
+load_dotenv()
 
 class EmbeddingGenerator:
     def __init__(self, model_name='text-embedding-3-large', logger=None):

@@ -95,6 +95,8 @@ class SceneGenerator:
             self._log(error_msg, "error")
             return False, error_msg
     
+    # Note: Scene adjustment functionality is experimental and not currently 
+    # connected to the UI. This can be activated for future development if needed.
     def adjust_scene(self, scene_path: str, critique: str,
                     output_dir: Optional[str] = None) -> Tuple[bool, str]:
         """

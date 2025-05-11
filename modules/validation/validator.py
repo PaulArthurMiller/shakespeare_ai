@@ -18,7 +18,7 @@ except ImportError:
     SPACY_AVAILABLE = False
 
 class Validator:
-    def __init__(self, ground_truth_path: str = "data/processed_chunks/lines.json"):
+    def __init__(self, ground_truth_path: str = "data/line_corpus/lines.json"):
         self.logger = CustomLogger("Validator")
         self.logger.info("Initializing Validator")
         self.ground_truth_path = ground_truth_path

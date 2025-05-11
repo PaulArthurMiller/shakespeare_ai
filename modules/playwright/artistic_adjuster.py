@@ -1,3 +1,6 @@
+# Note: Scene adjustment functionality is experimental and not currently 
+# connected to the UI. This can be activated for future development if needed.
+
 import os
 import json
 from typing import Dict, Any, Optional

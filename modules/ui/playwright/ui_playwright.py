@@ -215,6 +215,8 @@ class UIPlaywright:
         """
         return self.scene_generator.generate_scenes(length_option=length_option)
     
+    # Note: Scene adjustment functionality is experimental and not currently 
+    # connected to the UI. This can be activated for future development if needed.
     def generate_scene_adjustment(self, scene_path: str, critique: str, 
                                output_dir: Optional[str] = None) -> Tuple[bool, str]:
         """

@@ -80,6 +80,32 @@ python -m spacy download en_core_web_sm
    ANTHROPIC_API_KEY=your_anthropic_api_key
    ```
 
+### 7. Set Up the Chroma Database
+
+The application requires a pre-built vector database for RAG (Retrieval Augmented Generation) operations.
+
+1. Download the Chroma database archive from [your-specified-location]
+2. Extract/copy the database to your Shakespeare AI installation:
+   - Extract the ZIP file to a temporary location
+   - Copy the entire `chromadb_vectors` folder to the `embeddings` directory in your Shakespeare AI installation
+   - Final location should be: `shakespeare_ai/embeddings/chromadb_vectors/`
+3. Verify the structure matches:
+
+embeddings/
+- chromadb_vectors/
+   - 6787b5a8-d466-4980-81d1-04c63641edd9/
+   - b737a7d0-f54f-42de-a7c2-ddf8036289d6/
+   - f0c53ac0-5dd1-4531-acc8-2f6441273ba3/
+   - chroma.sqlite3
+
+4. Run the verification script: `python verify_installation.py`
+
+## Important Notes
+
+- The database is about 5.5 GB total
+- Download time will depend on your internet connection
+- Make sure you have sufficient disk space before downloading
+
 ## Running the Application
 
 After installation, run the application with:
