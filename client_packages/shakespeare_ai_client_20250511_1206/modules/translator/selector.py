@@ -272,18 +272,6 @@ class Selector:
             - chunk_map: Dict[temp_id] -> CandidateQuote
         """
         self.logger.info("Preparing prompt structure from grouped candidates...")
-
-        # ADD THIS: Log the structure of selector_results
-        for level in ["line", "phrases", "fragments"]:
-            candidates = selector_results.get(level, [])
-            self.logger.debug(f"Input {level}: {len(candidates)} candidates, type: {type(candidates)}")
-            if candidates and hasattr(candidates, "__iter__"):
-                first_item = next(iter(candidates), None)
-                if first_item:
-                    self.logger.debug(f"First {level} item type: {type(first_item)}")
-                    if hasattr(first_item, "text"):
-                        self.logger.debug(f"First {level} item text preview: {first_item.text[:30]}...")
-
         prompt_data: Dict[str, List[Dict[str, Any]]] = {"line": [], "phrases": [], "fragments": []}
         chunk_map: Dict[str, CandidateQuote] = {}
 

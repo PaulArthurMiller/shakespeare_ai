@@ -3,8 +3,6 @@ from modules.rag.vector_store import VectorStore
 from modules.chunking.phrase_chunker import PhraseChunker
 from modules.chunking.fragment_chunker import FragmentChunker
 from modules.utils.logger import CustomLogger
-import time
-import json
 
 class ShakespeareSearchEngine:
     def __init__(self, logger=None):
@@ -68,13 +66,8 @@ class ShakespeareSearchEngine:
             Dictionary with search results from different approaches
         """
         self.logger.info(f"Performing hybrid search for: '{modern_line}'")
-
-        # For detailed logs
-        log_file = f"logs/hybrid_search_{int(time.time())}.log"
-        detailed_logger = CustomLogger("HybridSearch", log_level="DEBUG", log_file=log_file)
-        detailed_logger.info(f"Starting hybrid search for query: '{modern_line}'")
         
-        # Initialize result structure
+        # Initialize a result structure
         result = {
             "original_line": modern_line,
             "search_method": "hybrid",
@@ -93,19 +86,18 @@ class ShakespeareSearchEngine:
             if "search_chunks" in vector_results:
                 search_chunks = vector_results["search_chunks"]
                 
-                # Handle line results (single result object)
+                # Handle line results
                 if "line" in search_chunks:
                     result["search_chunks"]["line"] = search_chunks["line"]
                 
-                # Handle phrases results (list of result objects)
+                # Handle phrases results
                 if "phrases" in search_chunks and isinstance(search_chunks["phrases"], list):
-                    result["search_chunks"]["phrases"] = search_chunks["phrases"].copy()
+                    result["search_chunks"]["phrases"] = search_chunks["phrases"]
                 
-                # Handle fragments results (list of result objects)
+                # Handle fragments results
                 if "fragments" in search_chunks and isinstance(search_chunks["fragments"], list):
-                    result["search_chunks"]["fragments"] = search_chunks["fragments"].copy()
-                detailed_logger.debug(f"Vector search returned: {json.dumps(search_chunks.keys())}")
-
+                    result["search_chunks"]["fragments"] = search_chunks["fragments"]
+            
             # Now add keyword-based search results
             try:
                 import re
@@ -125,35 +117,36 @@ class ShakespeareSearchEngine:
                 # Filter out stopwords and get the most relevant keywords
                 keywords = [w for w in words if w not in stopwords]
                 
-                # Take the 2 most common keywords (if available)
+                # Take the 3 most common keywords (if available)
                 if keywords:
                     keyword_freq = Counter(keywords)
-                    top_keywords = [kw for kw, _ in keyword_freq.most_common(2)]
+                    top_keywords = [kw for kw, _ in keyword_freq.most_common(3)]
                     
-                    self.logger.info(f"Extracted keywords for hybrid search: {top_keywords}")
-                    detailed_logger.debug(f"Extracted keywords: {top_keywords}")
-
-                    # For each keyword, search each collection and APPEND to existing results
+                    self.logger.info(f"Extracted keywords for search: {top_keywords}")
+                    
+                    # For each keyword, search each collection
                     for keyword in top_keywords:
                         try:
                             keyword_embedding = self.embedder.embed_texts([keyword])[0]
                             
-                            # Search phrases and fragments collections
-                            for level in ["phrases", "fragments"]:
+                            for level in ["line", "phrases", "fragments"]:
                                 try:
                                     collection = self.vector_stores[level].collection
                                     
                                     # Search using the keyword embedding
                                     keyword_results = collection.query(
                                         query_embeddings=[keyword_embedding],
-                                        n_results=2,  # Fewer per keyword to avoid overwhelming
+                                        n_results=3,  # Fewer per keyword
                                         include=["documents", "metadatas", "distances"]
                                     )
                                     
-                                    # CORRECTLY append these results to the existing list
-                                    if keyword_results and "documents" in keyword_results:
+                                    # Add these results to our result dictionary
+                                    if level == "line":
+                                        # Line results can be directly merged
+                                        result["search_chunks"][level] = keyword_results
+                                    else:
+                                        # Phrases and fragments results must be appended
                                         result["search_chunks"][level].append(keyword_results)
-                                        
                                 except Exception as e:
                                     self.logger.warning(f"Error searching {level} for keyword '{keyword}': {e}")
                         except Exception as e:
@@ -162,7 +155,7 @@ class ShakespeareSearchEngine:
             except Exception as e:
                 self.logger.warning(f"Error in keyword-based search: {e}")
             
-            # Log final results
+            # Check if we found any results
             total_line_results = len(result["search_chunks"]["line"].get("documents", []) 
                                 if isinstance(result["search_chunks"]["line"], dict) else [])
             total_phrase_results = sum(len(r.get("documents", [])) 

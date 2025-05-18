@@ -58,20 +58,6 @@ class Assembler:
         """Main method to assemble a translated line using only the provided quotes."""
         self.logger.info("Beginning line assembly")
         self.logger.debug(f"Modern line: {modern_line}")
-
-        # ADD THIS: Log the structure of prompt_data
-        self.logger.debug(f"Prompt data keys: {list(prompt_data.keys())}")
-        for key, items in prompt_data.items():
-            if key == "metadata":
-                continue  # Skip metadata
-            self.logger.debug(f"Prompt data '{key}' has {len(items)} items")
-            # Log first item details if available
-            if items:
-                first_item = items[0]
-                self.logger.debug(f"First '{key}' item keys: {list(first_item.keys())}")
-                if "text" in first_item:
-                    self.logger.debug(f"First '{key}' item text preview: {first_item['text'][:30]}...")
-
         retries = 0
         
         # Create a copy of prompt_data that we can modify during retries

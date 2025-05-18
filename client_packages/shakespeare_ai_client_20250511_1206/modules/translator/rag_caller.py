@@ -43,16 +43,6 @@ class RagCaller:
 
     def _extract_candidates(self, raw_results: List[Dict[str, Any]], level: str) -> List[CandidateQuote]:
         candidates = []
-
-        # Log the structure of raw_results
-        self.logger.debug(f"_extract_candidates for {level} - Input structure type: {type(raw_results)}")
-        self.logger.debug(f"_extract_candidates for {level} - Input length: {len(raw_results)}")
-        if raw_results:
-            first_item = raw_results[0]
-            self.logger.debug(f"_extract_candidates for {level} - First item type: {type(first_item)}")
-            if isinstance(first_item, dict):
-                self.logger.debug(f"_extract_candidates for {level} - First item keys: {list(first_item.keys())}")
-
         for result in raw_results:
             docs = result.get("documents", [])
             metas = result.get("metadatas", [])
@@ -123,13 +113,6 @@ class RagCaller:
                                 self.logger.debug(f"Added candidate from flat document with metadata list: level={level}, doc={i}, meta={j}")
         
         self.logger.info(f"Extracted {len(candidates)} candidates from {level} level")
-
-        # ADD THIS: Log the final candidates count and some sample data
-        self.logger.info(f"Extracted {len(candidates)} candidates from {level} level")
-        if candidates:
-            self.logger.debug(f"First candidate score: {candidates[0].score}")
-            self.logger.debug(f"First candidate text preview: {candidates[0].text[:50]}...")
-
         return candidates
 
     def hybrid_search(self, modern_line: str, top_k: int = 10) -> Dict[str, List[CandidateQuote]]:
@@ -146,18 +129,6 @@ class RagCaller:
             self.logger.debug(f"Raw hybrid search results keys: {list(results.keys())}")
             if "search_chunks" in results:
                 self.logger.debug(f"Search chunks keys: {list(results.get('search_chunks', {}).keys())}")
-                # Log the structure of each search chunk type
-                for chunk_type in ["line", "phrases", "fragments"]:
-                    chunk_data = results.get("search_chunks", {}).get(chunk_type, None)
-                    if chunk_data is not None:
-                        if isinstance(chunk_data, list):
-                            self.logger.debug(f"{chunk_type} is a list with {len(chunk_data)} items")
-                            for i, item in enumerate(chunk_data[:2]):  # Log first 2 items max
-                                self.logger.debug(f"{chunk_type}[{i}] keys: {list(item.keys()) if isinstance(item, dict) else 'not a dict'}")
-                        elif isinstance(chunk_data, dict):
-                            self.logger.debug(f"{chunk_type} is a dict with keys: {list(chunk_data.keys())}")
-                        else:
-                            self.logger.debug(f"{chunk_type} is type: {type(chunk_data)}")
             
             # Ensure we have a valid results structure before proceeding
             if not results or "search_chunks" not in results:

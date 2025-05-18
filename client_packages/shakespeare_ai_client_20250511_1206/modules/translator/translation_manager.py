@@ -10,13 +10,13 @@ from modules.translator.config import get_config, update_config, get_output_dir
 from modules.rag.used_map import UsedMap
 from dotenv import load_dotenv
 import re
-import os
+
 
 load_dotenv()
 
 class TranslationManager:
     def __init__(self, custom_config: Optional[Dict[str, Any]] = None, logger: Optional[CustomLogger] = None):
-        self.logger = logger or CustomLogger("TranslationManager", log_level="DEBUG", log_file="logs/translation.log")
+        self.logger = logger or CustomLogger("TranslationManager")
         self.logger.info("Initializing TranslationManager")
 
         # Load configuration
@@ -49,20 +49,6 @@ class TranslationManager:
     def start_translation_session(self, translation_id: Optional[str] = None):
         self.translation_id = translation_id or self._generate_translation_id()
         self.logger.info(f"Starting translation session: {self.translation_id}")
-
-        # Set up session-specific logging
-        log_dir = f"logs/session_{self.translation_id}"
-        os.makedirs(log_dir, exist_ok=True)
-        session_log_file = f"{log_dir}/translation.log"
-        
-        # Update logger to use session-specific log file
-        self.logger = CustomLogger("TranslationManager", log_level="DEBUG", log_file=session_log_file)
-        
-        # Update component loggers
-        self.used_map.logger = CustomLogger("UsedMap", log_level="DEBUG", log_file=session_log_file)
-        self.rag.logger = CustomLogger("RagCaller", log_level="DEBUG", log_file=session_log_file)
-        self.selector.logger = CustomLogger("Selector", log_level="DEBUG", log_file=session_log_file)
-
         self.used_map.load(self.translation_id)
 
     def _count_syllables(self, text: str) -> int:
@@ -96,9 +82,6 @@ class TranslationManager:
         """
         Modified to use config values as defaults
         """
-        os.makedirs("logs", exist_ok=True)
-
-
         if not self.translation_id:
             raise RuntimeError("Translation session not started. Call start_translation_session().")
 
