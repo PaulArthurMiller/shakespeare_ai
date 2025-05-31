@@ -8,7 +8,6 @@ import os
 import shutil
 import re
 from typing import Dict, List, Any, Optional, Tuple, Union
-from pathlib import Path
 
 from modules.ui.file_helper import (
     load_text_from_file,
@@ -152,80 +151,105 @@ class ExportManager:
             return False, error_msg
     
     def combine_scenes_in_project(self, project_id: str, 
-                                output_filename: str,
-                                session_id: Optional[str] = None) -> Tuple[bool, str]:
-        try:
-            self._log(f"Combining scenes for project {project_id}. Session ID is {session_id}.")
-            
-            project_folder = Path("data") / "play_projects" / project_id
-            scenes_root = project_folder / "scenes"
-            if session_id:
-                scenes_dir = scenes_root / f"session_{session_id}"
-            else:
-                scenes_dir = scenes_root
-            self._log(f"Looking for scenes in {scenes_dir}.")
-            if not scenes_dir.is_dir():
-                return False, f"Scenes directory not found at {scenes_dir}"
-            try:
-                files = os.listdir(scenes_dir)
-            except FileNotFoundError:
-                self._log(f"[DEBUG] Directory not found: {scenes_dir}")
-                files = []
-            else:
-                self._log(f"[DEBUG] Files found: {files}")
-            # Collect all .md files (case-insensitive)
-            scene_files = [p for p in scenes_dir.iterdir() if p.suffix.lower() == ".md"]
-
-            if not scene_files:
-                return False, f"No scene files found in {scenes_dir}"
-
-            # Sort by act/scene using your helper
-            scene_files.sort(key=lambda p: (
-                self._act_to_int(extract_act_scene_from_filename(p.name)[0]),
-                self._scene_to_int(extract_act_scene_from_filename(p.name)[1])
-            ))
-
-            combined_text = ""
-            for p in scene_files:
-                try:
-                    combined_text += p.read_text(encoding="utf-8").strip() + "\n\n"
-                except Exception as e:
-                    self._log(f"Error reading scene file {p}: {e}", "error")
-
-            output_path = project_folder / output_filename
-            if not save_text_to_file(combined_text, str(output_path)):
-                return False, f"Error saving combined play to {output_path}"
-
-            self._log(f"Combined play saved to {output_path}")
-            return True, str(output_path)
+                                output_filename: str) -> Tuple[bool, str]:
+        """
+        Combine all scenes in a project into a single play file.
         
+        Args:
+            project_id: Project identifier
+            output_filename: Output filename
+            
+        Returns:
+            Tuple of (success, error_message or output_path)
+        """
+        try:
+            self._log(f"Combining scenes for project {project_id}")
+            
+            # Project folder
+            project_folder = os.path.join("data/play_projects", project_id)
+            project_scenes_dir = os.path.join(project_folder, "scenes")
+            
+            if not os.path.exists(project_scenes_dir):
+                return False, f"Scenes directory not found at {project_scenes_dir}"
+            
+            # Get scene files and sort them
+            scene_files = []
+            for filename in os.listdir(project_scenes_dir):
+                if filename.endswith(".md"):
+                    filepath = os.path.join(project_scenes_dir, filename)
+                    act, scene = extract_act_scene_from_filename(filename)
+                    scene_files.append((filepath, filename, act, scene))
+            
+            if not scene_files:
+                return False, f"No scene files found in {project_scenes_dir}"
+            
+            # Sort scene files by act and scene
+            scene_files.sort(key=lambda x: (self._act_to_int(x[2]), self._scene_to_int(x[3])))
+            
+            # Get project data for title
+            from modules.ui.playwright.project_manager import ProjectManager
+            project_manager = ProjectManager(logger=self.logger)
+            project_data = project_manager.get_project_data(project_id)
+            
+            # Use project title as header if available
+            title = project_data.get("title", "Play") if project_data else "Play"
+            combined_text = f"# {title}\n\n"
+            
+            # Combine the files
+            for filepath, _, _, _ in scene_files:
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        scene_text = f.read().strip()
+                    combined_text += scene_text + "\n\n"
+                except Exception as e:
+                    self._log(f"Error reading scene file {filepath}: {e}", "error")
+            
+            # Full output path
+            output_path = os.path.join(project_folder, output_filename)
+            
+            # Save the combined play
+            if not save_text_to_file(combined_text, output_path):
+                return False, f"Error saving combined play to {output_path}"
+            
+            self._log(f"Combined play saved to {output_path}")
+            return True, output_path
         except Exception as e:
             error_msg = f"Error combining scenes: {str(e)}"
             self._log(error_msg, "error")
             return False, error_msg
     
     def save_scene_to_file(self, project_id: str, act: str, scene: str, 
-                        output_format: str = "docx", session_id: Optional[str] = None) -> Tuple[bool, str]:
+                        output_format: str = "docx") -> Tuple[bool, str]:
+        """
+        Save a specific scene to a file in the desired format.
+        
+        Args:
+            project_id: Project identifier
+            act: Act identifier
+            scene: Scene identifier
+            output_format: Output format ("docx" or "md")
+            
+        Returns:
+            Tuple of (success, output_path)
+        """
         project_folder = os.path.join("data/play_projects", project_id)
-        scene_md_path = os.path.join(project_folder, "scenes", f"act_{act.lower()}_scene_{scene.lower()}.md")
+        scene_md_path = os.path.join(project_folder, "scenes", 
+                                f"act_{act.lower()}_scene_{scene.lower()}.md")
         
         # Check if scene exists
         if not os.path.exists(scene_md_path):
             return False, f"Scene file not found: {scene_md_path}"
         
-        # Construct output directory, add session subfolder if session_id provided
+        # Create output directory
         output_dir = os.path.join(project_folder, "exports")
-        if session_id:
-            output_dir = os.path.join(output_dir, f"session_{session_id}")
         ensure_directory(output_dir)
         
-        # Save logs alongside exports if needed (optional)
+        # Save logs with the export
         self.save_logs_with_export(project_id, output_dir)
         
-        prefix = f"session_{session_id}_" if session_id else ""
-        
         if output_format.lower() == "md":
-            output_path = os.path.join(output_dir, f"{prefix}act_{act.lower()}_scene_{scene.lower()}.md")
+            # For markdown, just copy the file
+            output_path = os.path.join(output_dir, f"act_{act.lower()}_scene_{scene.lower()}.md")
             try:
                 shutil.copy2(scene_md_path, output_path)
                 return True, output_path
@@ -233,57 +257,82 @@ class ExportManager:
                 return False, f"Error copying file: {str(e)}"
         
         elif output_format.lower() == "docx":
-            if not self.docx_available:
+            # For docx, use an exporter (assume it's installed or import if possible)
+            if self.docx_available:
+                try:
+                    from docx import Document
+                    from docx.shared import Pt, RGBColor
+                    from docx.enum.text import WD_ALIGN_PARAGRAPH
+                    
+                    # Read the markdown
+                    content = load_text_from_file(scene_md_path)
+                    if not content:
+                        return False, "Could not read scene file"
+                    
+                    # Create the document
+                    doc = Document()
+                    
+                    # Title
+                    title = doc.add_heading(f"Act {act}, Scene {scene}", level=1)
+                    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    
+                    # Process the markdown line by line
+                    lines = content.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        
+                        # Skip act and scene headers that are already in the title
+                        if re.match(r'^ACT\s+[IVX\d]+', line, re.IGNORECASE) or \
+                        re.match(r'^SCENE\s+[IVX\d]+', line, re.IGNORECASE):
+                            continue
+                            
+                        # Check if it's a stage direction [...]
+                        if line.startswith('[') and line.endswith(']'):
+                            p = doc.add_paragraph()
+                            run = p.add_run(line)
+                            run.italic = True
+                            continue
+                            
+                        # Check if it's a character name (all caps)
+                        if line.isupper() and len(line.split()) <= 3:
+                            p = doc.add_paragraph()
+                            run = p.add_run(line)
+                            run.bold = True
+                            p.paragraph_format.space_after = Pt(0)
+                            continue
+                            
+                        # Regular dialogue
+                        p = doc.add_paragraph(line)
+                        p.paragraph_format.left_indent = Pt(36)  # Indent dialogue
+                    
+                    # Save the document
+                    output_path = os.path.join(output_dir, f"act_{act.lower()}_scene_{scene.lower()}.docx")
+                    doc.save(output_path)
+                    
+                    return True, output_path
+                except Exception as e:
+                    return False, f"Error creating DOCX: {str(e)}"
+            else:
                 return False, "python-docx not available. Install with: pip install python-docx"
-            
-            try:
-                from docx import Document
-                from docx.shared import Pt
-                from docx.enum.text import WD_ALIGN_PARAGRAPH
-                
-                content = load_text_from_file(scene_md_path)
-                if not content:
-                    return False, "Could not read scene file"
-                
-                doc = Document()
-                title = doc.add_heading(f"Act {act}, Scene {scene}", level=1)
-                title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                
-                lines = content.split('\n')
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    if re.match(r'^ACT\s+[IVX\d]+', line, re.IGNORECASE) or re.match(r'^SCENE\s+[IVX\d]+', line, re.IGNORECASE):
-                        continue
-                    if line.startswith('[') and line.endswith(']'):
-                        p = doc.add_paragraph()
-                        run = p.add_run(line)
-                        run.italic = True
-                        continue
-                    if line.isupper() and len(line.split()) <= 3:
-                        p = doc.add_paragraph()
-                        run = p.add_run(line)
-                        run.bold = True
-                        p.paragraph_format.space_after = Pt(0)
-                        continue
-                    p = doc.add_paragraph(line)
-                    p.paragraph_format.left_indent = Pt(36)
-                
-                output_path = os.path.join(output_dir, f"{prefix}act_{act.lower()}_scene_{scene.lower()}.docx")
-                doc.save(output_path)
-                
-                return True, output_path
-            
-            except Exception as e:
-                return False, f"Error creating DOCX: {str(e)}"
         else:
             return False, f"Unsupported output format: {output_format}"
 
     def save_full_play_to_file(self, project_id: str, 
-                            output_format: str = "docx", session_id: Optional[str] = None) -> Tuple[bool, str]:
-        from modules.ui.playwright.project_manager import ProjectManager
+                            output_format: str = "docx") -> Tuple[bool, str]:
+        """
+        Save all scenes as a full play file in the desired format.
         
+        Args:
+            project_id: Project identifier
+            output_format: Output format ("docx" or "md")
+            
+        Returns:
+            Tuple of (success, output_path)
+        """
+        # Get project data
+        from modules.ui.playwright.project_manager import ProjectManager
         project_manager = ProjectManager(logger=self.logger)
         project_data = project_manager.get_project_data(project_id)
         
@@ -291,51 +340,52 @@ class ExportManager:
             return False, f"Project not found: {project_id}"
         
         project_folder = os.path.join("data/play_projects", project_id)
-        project_scenes_dir = os.path.join(project_folder, "scenes", f"session_{session_id}")
+        project_scenes_dir = os.path.join(project_folder, "scenes")
         
+        # Create output directory
         output_dir = os.path.join(project_folder, "exports")
-        if session_id:
-            output_dir = os.path.join(output_dir, f"session_{session_id}")
         ensure_directory(output_dir)
         
+        # Get title for filename - ensure it's a string and sanitize for filename use
         play_title = project_data.get("title", "play")
         if not isinstance(play_title, str):
-            play_title = "play"
+            play_title = "play"  # Default if title is not a string
         safe_title = str(play_title).replace(" ", "_").lower()
         
+        # Save logs with the export
         self.save_logs_with_export(project_id, output_dir)
         
-        prefix = f"session_{session_id}_" if session_id else ""
-        
         if output_format.lower() == "md":
-            filename = f"{prefix}{safe_title}_full.md"
+            # First combine scenes into a single markdown file
             success, result = self.combine_scenes_in_project(
                 project_id=project_id,
-                output_filename=filename,
-                session_id=session_id  # pass session_id down
+                output_filename=f"{safe_title}_full.md"
             )
             
             if not success:
                 return False, result
-            
+                
+            # Copy to exports directory
             source_path = result
-            output_path = os.path.join(output_dir, filename)
+            output_path = os.path.join(output_dir, f"{safe_title}_full.md")
             
             try:
                 shutil.copy2(source_path, output_path)
                 return True, output_path
             except Exception as e:
                 return False, f"Error copying file: {str(e)}"
-        
+            
         elif output_format.lower() == "docx":
+            # For docx, we need to create a new document
             if not self.docx_available:
                 return False, "python-docx not available. Install with: pip install python-docx"
-            
+                
             try:
                 from docx import Document
-                from docx.shared import Pt
+                from docx.shared import Pt, RGBColor
                 from docx.enum.text import WD_ALIGN_PARAGRAPH
                 
+                # Get all scene files
                 scene_files = []
                 for filename in os.listdir(project_scenes_dir):
                     if filename.endswith(".md"):
@@ -343,59 +393,81 @@ class ExportManager:
                         act, scene = extract_act_scene_from_filename(filename)
                         scene_files.append((filepath, filename, act, scene))
                 
+                # Sort scene files
                 scene_files.sort(key=lambda x: (self._act_to_int(x[2]), self._scene_to_int(x[3])))
                 
                 if not scene_files:
                     return False, "No scene files found"
                 
+                # Create document
                 doc = Document()
+                
+                # Add title - Get title as a string
                 title_text = str(project_data.get("title", "Play"))
                 title = doc.add_heading(title_text, level=0)
                 title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add page break after title
                 doc.add_page_break()
                 
+                # Process each scene
                 current_act = None
                 
                 for filepath, _, act, scene in scene_files:
+                    # Add act header if it's a new act
                     if act != current_act:
                         doc.add_heading(f"Act {act}", level=1)
                         current_act = act
                     
+                    # Add scene header
                     doc.add_heading(f"Scene {scene}", level=2)
                     
+                    # Read scene content
                     content = load_text_from_file(filepath)
                     if not content:
                         self._log(f"Could not read scene file: {filepath}", "warning")
                         continue
                     
+                    # Process the scene content line by line
                     lines = content.split('\n')
                     for line in lines:
                         line = line.strip()
                         if not line:
                             continue
-                        if re.match(r'^ACT\s+[IVX\d]+', line, re.IGNORECASE) or re.match(r'^SCENE\s+[IVX\d]+', line, re.IGNORECASE):
+                        
+                        # Skip act and scene headers that are already added
+                        if re.match(r'^ACT\s+[IVX\d]+', line, re.IGNORECASE) or \
+                        re.match(r'^SCENE\s+[IVX\d]+', line, re.IGNORECASE):
                             continue
+                            
+                        # Check if it's a stage direction [...]
                         if line.startswith('[') and line.endswith(']'):
                             p = doc.add_paragraph()
                             run = p.add_run(line)
                             run.italic = True
                             continue
+                            
+                        # Check if it's a character name (all caps)
                         if line.isupper() and len(line.split()) <= 3:
                             p = doc.add_paragraph()
                             run = p.add_run(line)
                             run.bold = True
                             p.paragraph_format.space_after = Pt(0)
                             continue
+                            
+                        # Regular dialogue
                         p = doc.add_paragraph(line)
-                        p.paragraph_format.left_indent = Pt(36)
+                        p.paragraph_format.left_indent = Pt(36)  # Indent dialogue
                     
+                    # Add page break after each scene
                     doc.add_page_break()
                 
-                output_path = os.path.join(output_dir, f"{prefix}{safe_title}_full.docx")
+                # Save the document - USE THE SAFE TITLE HERE
+                output_path = os.path.join(output_dir, f"{safe_title}_full.docx")
                 doc.save(output_path)
                 
                 return True, output_path
-            
+                
             except Exception as e:
                 return False, f"Error creating DOCX: {str(e)}"
         else:

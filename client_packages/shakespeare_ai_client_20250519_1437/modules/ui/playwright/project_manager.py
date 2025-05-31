@@ -77,25 +77,7 @@ class ProjectManager:
         
         self._log(f"Created new play project: {title} (ID: {project_id})")
         return project_id
-
-    def save_character_voices(self, project_id: str, voices: Dict[str, str]) -> bool:
-        project_folder = os.path.join(self.projects_dir, project_id)
-        filepath = os.path.join(project_folder, "character_voices.json")
-        return save_json_to_file(voices, filepath)
-
-    def load_character_voices(self, project_id: str) -> Dict[str, str]:
-        filepath = os.path.join(self.projects_dir, project_id, "character_voices.json")
-        return load_json_from_file(filepath) or {}
-
-    def save_scene_summaries(self, project_id: str, summaries: Dict[str, Any]) -> bool:
-        project_folder = os.path.join(self.projects_dir, project_id)
-        filepath = os.path.join(project_folder, "scene_summaries.json")
-        return save_json_to_file(summaries, filepath)
-
-    def load_scene_summaries(self, project_id: str) -> Dict[str, Any]:
-        filepath = os.path.join(self.projects_dir, project_id, "scene_summaries.json")
-        return load_json_from_file(filepath) or {}
-
+    
     def add_scene(self, project_id: str, act: str, scene: str, 
                  overview: str, setting: str, characters: List[str],
                  additional_instructions: str = "") -> bool:

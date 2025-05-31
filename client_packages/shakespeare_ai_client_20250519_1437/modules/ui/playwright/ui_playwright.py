@@ -6,7 +6,6 @@ underlying playwright functionality, delegating to specialized handlers
 for different aspects of the playwriting process.
 """
 import os
-import uuid
 from typing import Dict, List, Any, Optional, Tuple, Union
 from datetime import datetime
 
@@ -81,9 +80,6 @@ class UIPlaywright:
                 getattr(self.logger, level)(message)
         else:
             print(f"[{level.upper()}] {message}")
-
-    def _generate_session_id(self) -> str:
-        return str(uuid.uuid4())[:8]
     
     # Configuration management methods
     def update_playwright_config(self, config: Dict[str, Any]) -> bool:
@@ -98,28 +94,6 @@ class UIPlaywright:
         """
         return self.config_manager.update_config(config)
     
-    def update_character_voices(self, project_id: str, voices: Dict[str, str]) -> bool:
-        """
-        Update the project's master character voices JSON.
-        """
-        success = self.project_manager.save_character_voices(project_id, voices)
-        if success:
-            self._log(f"Character voices updated for project {project_id}")
-        else:
-            self._log(f"Failed to update character voices for project {project_id}", "error")
-        return success
-
-    def update_scene_summaries(self, project_id: str, summaries: Dict[str, Any]) -> bool:
-        """
-        Update the project's master scene summaries JSON.
-        """
-        success = self.project_manager.save_scene_summaries(project_id, summaries)
-        if success:
-            self._log(f"Scene summaries updated for project {project_id}")
-        else:
-            self._log(f"Failed to update scene summaries for project {project_id}", "error")
-        return success
-
     # Project management methods
     def manage_project_creation(self, title: str, thematic_guidelines: str, 
                              character_voices: Dict[str, str]) -> str:
@@ -192,8 +166,7 @@ class UIPlaywright:
     
     # Scene generation methods
     def generate_single_scene(self, project_id: str, act: str, scene: str,
-                            length_option: str = "medium",
-                            session_id: Optional[str] = None) -> Tuple[bool, str, str]:
+                           length_option: str = "medium") -> Tuple[bool, str, str]:
         """
         Generate a specific scene from a project.
         
@@ -206,20 +179,15 @@ class UIPlaywright:
         Returns:
             Tuple of (success, scene_content or error_message, scene_path)
         """
-        if session_id is None:
-            session_id = self._generate_session_id()
-        
         return self.scene_generator.generate_project_scene(
             project_id=project_id,
             act=act,
             scene=scene,
-            length_option=length_option,
-            session_id=session_id
+            length_option=length_option
         )
     
     def generate_complete_project(self, project_id: str, 
-                               length_option: str = "medium",
-                            session_id: Optional[str] = None) -> Tuple[bool, str, str]:
+                               length_option: str = "medium") -> Tuple[bool, str]:
         """
         Generate all scenes for a project and combine them into a full play.
         
@@ -230,18 +198,10 @@ class UIPlaywright:
         Returns:
             Tuple of (success, output_path or error_message)
         """
-        if session_id is None:
-            session_id = self._generate_session_id()
-
-        success, full_play_path, session_id = self.scene_generator.generate_full_project(
+        return self.scene_generator.generate_full_project(
             project_id=project_id,
-            length_option=length_option,
-            session_id=session_id
+            length_option=length_option
         )
-        if success:
-            self.last_full_play = full_play_path
-        self.last_session_id = session_id
-        return success, full_play_path, session_id       
     
     def generate_all_scenes(self, length_option: str = "medium") -> Tuple[bool, str]:
         """
@@ -277,20 +237,18 @@ class UIPlaywright:
         )
     
     # Story expansion methods
-    def expand_story_details(self, project_id: Optional[str] = None, session_id: Optional[str] = None) -> Tuple[bool, str]:
+    def expand_story_details(self) -> Tuple[bool, str]:
         """
         Expand a story structure into detailed scene descriptions.
         
         Returns:
             Tuple of (success, error_message or output_path)
         """
-        if session_id is None:
-            session_id = self._generate_session_id()
-        return self.story_manager.expand_story(project_id=project_id, session_id=session_id)
+        return self.story_manager.expand_story()
     
     # Export methods
     def export_scene_file(self, project_id: str, act: str, scene: str, 
-                        output_format: str = "docx", session_id: Optional[str] = None) -> Tuple[bool, str]:
+                       output_format: str = "docx") -> Tuple[bool, str]:
         """
         Save a specific scene to a file in the desired format.
         
@@ -307,13 +265,11 @@ class UIPlaywright:
             project_id=project_id,
             act=act,
             scene=scene,
-            output_format=output_format,
-            session_id=session_id
+            output_format=output_format
         )
     
     def export_full_play_file(self, project_id: str, 
-                            output_format: str = "docx", 
-                            session_id: Optional[str] = None) -> Tuple[bool, str]:
+                           output_format: str = "docx") -> Tuple[bool, str]:
         """
         Save all scenes as a full play file in the desired format.
         
@@ -326,15 +282,10 @@ class UIPlaywright:
         """
         return self.export_manager.save_full_play_to_file(
             project_id=project_id,
-            output_format=output_format,
-            session_id=session_id
+            output_format=output_format
         )
-
-    def export_combined_scenes(self,
-                            project_id: str,
-                            session_id: Optional[str] = None,
-                            output_filename: Optional[str] = None
-                            ) -> Tuple[bool, str]:
+    
+    def export_combined_scenes(self, output_filename: Optional[str] = None) -> Tuple[bool, str]:
         """
         Combine all generated scenes into a single play file.
         
@@ -343,23 +294,12 @@ class UIPlaywright:
             
         Returns:
             Tuple of (success, error_message or output_path)
-        """        
-        exports_dir = os.path.join(self.base_output_dir, project_id, "exports")
-        combined_name = output_filename or f"session_{session_id}_{project_id}_full_play.md"
-        candidate = os.path.join(exports_dir, combined_name)
-
-        self._log(f"[DEBUG] Looking for combined play at: {candidate}", "debug")
-        if os.path.exists(candidate):
-            self._log(f"[INFO] Found existing combined play: {candidate}", "info")
-            return True, candidate
-
-        self._log(f"[WARNING] No combined play found at exports/, falling back to recombine", "warning")
-        # fallback to old behavior
-        return self.export_manager.combine_scenes_in_project(
-            project_id=project_id,
-            output_filename=str(output_filename),
-            session_id=session_id
+        """
+        return self.export_manager.combine_scenes(
+            base_output_dir=self.base_output_dir,
+            output_filename=output_filename
         )
+
 
 # Create a function to get a singleton instance
 _INSTANCE = None

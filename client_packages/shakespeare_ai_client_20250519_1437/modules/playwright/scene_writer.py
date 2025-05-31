@@ -15,9 +15,8 @@ class SceneWriter:
         config_path: str = "modules/playwright/config.py",
         expanded_story_path: str = "data/modern_play/expanded_story.json",
         output_dir: Optional[str] = None,
-        length_option: str = "medium",
-        session_id: Optional[str] = None
-        ):
+        length_option: str = "medium"  # New parameter with default "medium"
+    ):
         self.logger = CustomLogger("SceneWriter")
         self.logger.info("Initializing SceneWriter")
 
@@ -25,7 +24,6 @@ class SceneWriter:
         self.model_provider = self.config.get("model_provider", "openai")
         self.model_name = self.config.get("model_name", "gpt-4o")
         self.temperature = self.config.get("temperature", 0.7)
-        self.session_id = session_id
 
         # Log the configuration values for debugging
         self.logger.info(f"Using model provider: {self.model_provider}")
@@ -38,7 +36,7 @@ class SceneWriter:
         self.logger.info(f"Using length option: {length_option} ({self.word_count_range[0]}-{self.word_count_range[1]} words)")
         
         self.expanded_story_path = expanded_story_path
-        self.output_dir = output_dir or "data/modern_play/"
+        self.output_dir = output_dir or "data/modern_play/generated_scenes_claude2"
         os.makedirs(self.output_dir, exist_ok=True)
 
         self.openai_client = None
@@ -194,8 +192,7 @@ But the one upon which I am speaking.
             prompt = self._build_prompt(act, scene)
             try:
                 dialog = self._call_model(prompt)
-                prefix = f"session_{self.session_id}_" if self.session_id else ""
-                filename = f"{prefix}act_{act.lower()}_scene_{scene_num}"
+                filename = f"act_{act.lower()}_scene_{scene_num}"
                 with open(os.path.join(self.output_dir, f"{filename}.md"), "w", encoding="utf-8") as f:
                     f.write(f"ACT {act}\n\nSCENE {scene_num}\n\n{dialog}")
                 with open(os.path.join(self.output_dir, f"{filename}.json"), "w", encoding="utf-8") as f:

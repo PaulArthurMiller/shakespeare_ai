@@ -99,7 +99,7 @@ class StoryManager:
         data = load_json_from_file(self.characters_path)
         return data if data else {}
     
-    def expand_story(self, project_id: Optional[str] = None, session_id: Optional[str] = None) -> Tuple[bool, str]:
+    def expand_story(self, project_id: Optional[str] = None) -> Tuple[bool, str]:
         """
         Expand a story structure into detailed scene descriptions.
         
@@ -114,53 +114,30 @@ class StoryManager:
         
         try:
             self._log("Starting story expansion...")
-
-            if session_id is None:
-                session_id = str(int(time.time()))
-
+            
             # If project_id is provided, get project data
             if project_id:
                 from modules.ui.playwright.project_manager import ProjectManager
                 project_manager = ProjectManager(logger=self.logger)
                 project_data = project_manager.get_project_data(project_id)
-
+                
                 if not project_data:
                     return False, f"Project not found: {project_id}"
-
-                session_dir = os.path.join("data/play_projects", project_id, "generation_sessions", f"session_{session_id}")
+                    
+                # Create output path in project folder
+                session_dir = os.path.join("data/play_projects", project_id, "generation_sessions", f"session_{int(time.time())}")
                 os.makedirs(session_dir, exist_ok=True)
-
-                expanded_output = os.path.join(session_dir, f"expanded_story_session_{session_id}.json")
-
+                expanded_output = os.path.join(session_dir, "expanded_story.json")
+                    
+                # Create StoryExpander with default paths
                 expander = StoryExpander()
-
-                # Call the original expand_all_scenes to get output data (this returns a path)
+                
+                # Call with direct data
                 result_path = expander.expand_all_scenes(
                     output_path=expanded_output,
                     scene_summaries_data={"scenes": project_data.get("scenes", [])},
                     character_voices_data=project_data.get("character_voices", {})
                 )
-
-                # Now load expanded story JSON, add session_id metadata, and resave
-                try:
-                    with open(result_path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                except Exception as e:
-                    self._log(f"Failed to load expanded story for session_id addition: {e}", "error")
-                    return False, f"Failed to load expanded story: {str(e)}"
-
-                data["session_id"] = session_id
-
-                try:
-                    with open(result_path, "w", encoding="utf-8") as f:
-                        json.dump(data, f, indent=2)
-                except Exception as e:
-                    self._log(f"Failed to save expanded story with session_id: {e}", "error")
-                    return False, f"Failed to save expanded story with session_id: {str(e)}"
-
-                self._log(f"Expanded story saved to {result_path} with session_id {session_id}")
-
-                return True, result_path
                 
             else:
                 # Original implementation using file paths

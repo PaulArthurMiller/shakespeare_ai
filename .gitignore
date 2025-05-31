@@ -68,6 +68,7 @@ data/prompts/*
 embeddings/chromadb_vectors/**/*.*
 outputs/test_run/*
 outputs/translated_scenes/*
+client_packages/shakespeare_ai_client_20250519_1437/embeddings/*
 
 # Temporary and Generated Files
 *.txt
@@ -76,6 +77,8 @@ outputs/translated_scenes/*
 *.pdf
 *.json
 *.zip
+*.docx
+
 
 # JSON and exceptions
 -*.json
