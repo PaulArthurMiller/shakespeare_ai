@@ -198,7 +198,9 @@ def update_scene_info(
     act: str, 
     scene: str, 
     filename: str, 
-    line_count: int
+    line_count: int,
+    source_file_content: Optional[str] = None,
+    source_filename: Optional[str] = None
 ) -> bool:
     """
     Update information about a translated scene.
@@ -216,6 +218,13 @@ def update_scene_info(
     # Get current session info
     info = get_session_info(translation_id)
     
+    # Store source file info if provided (usually only on first scene)
+    if source_file_content is not None and "source_file" not in info:
+        info["source_file"] = {
+            "filename": source_filename or filename,
+            "content": source_file_content
+        }
+
     # New scene info
     scene_info = {
         "act": act,

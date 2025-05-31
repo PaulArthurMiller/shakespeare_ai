@@ -20,7 +20,8 @@ from modules.ui.file_helper import (
 from modules.ui.session_manager import (
     get_session_info,
     update_scene_info,
-    is_scene_translated
+    is_scene_translated,
+    save_session_info
 )
 
 # Import the core translator functionality
@@ -310,7 +311,7 @@ class UITranslator:
             # Extract act and scene from filename
             act, scene = extract_act_scene_from_filename(filepath)
             self._log(f"Translating file: {filepath} (Act {act}, Scene {scene})")
-            
+
             # Check if this scene has already been translated
             if not force_retranslate and is_scene_translated(self.translation_id, act, scene):
                 self._log(f"Scene Act {act}, Scene {scene} has already been translated")
@@ -368,7 +369,7 @@ class UITranslator:
             # Now ensure_directory receives a string, not Optional[str]
             ensure_directory(actual_output_dir)
             self._log("Output directory confirmed to exist")
-            
+
             # Translate the lines
             self._log(f"Starting translation of {len(modern_lines)} lines with hybrid_search={use_hybrid_search}")
             
@@ -428,7 +429,7 @@ class UITranslator:
                         original_lines=modern_lines
                     )
                     
-                    # Update scene info in the session
+                    # Update scene info and store source file content
                     self._log("Updating session information")
                     update_scene_info(
                         translation_id=self.translation_id,
@@ -510,7 +511,71 @@ class UITranslator:
         except Exception as e:
             self._log(f"Error processing uploaded file: {e}")
             return False, "", 0
-    
+
+    def translate_uploaded_file_with_content_storage(
+        self, 
+        uploaded_file, 
+        temp_dir: str = "temp",
+        output_dir: Optional[str] = None,
+        force_retranslate: bool = False,
+        use_hybrid_search: bool = True
+    ) -> Tuple[bool, str, int]:
+        """
+        Translate an uploaded file from Streamlit with enhanced content storage for export.
+        This version stores the file content directly for Docker compatibility.
+        """
+        if not self.translation_id:
+            self._log("Error: No translation ID set for file translation")
+            return False, "", 0
+            
+        if uploaded_file is None:
+            self._log("Error: No file uploaded")
+            return False, "", 0
+            
+        try:
+            # Read file content directly from uploaded file
+            file_content = uploaded_file.getvalue().decode('utf-8')
+            filename = uploaded_file.name
+            
+            self._log(f"Processing uploaded file: {filename} ({len(file_content)} characters)")
+            
+            # Save temporarily for processing
+            ensure_directory(temp_dir)
+            temp_path = os.path.join(temp_dir, filename)
+            
+            with open(temp_path, "w", encoding='utf-8') as f:
+                f.write(file_content)
+            
+            # Store source content in session immediately (before translation)
+            session_info = get_session_info(self.translation_id)
+            session_info["source_file"] = {
+                "filename": filename,
+                "content": file_content
+            }
+            save_session_info(self.translation_id, session_info)
+            self._log("Stored source file content in session for Docker compatibility")
+            
+            # Translate the file
+            success, out_dir, line_count = self.translate_file(
+                filepath=temp_path,
+                output_dir=output_dir,
+                force_retranslate=force_retranslate,
+                use_hybrid_search=use_hybrid_search
+            )
+            
+            # Clean up temp file
+            try:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            except Exception as remove_error:
+                self._log(f"Warning: Could not remove temporary file: {remove_error}")
+            
+            return success, out_dir, line_count
+            
+        except Exception as e:
+            self._log(f"Error processing uploaded file: {e}")
+            return False, "", 0
+            
     def get_translation_status(self) -> Dict[str, Any]:
         """
         Get the current status of the translation session.
@@ -536,6 +601,114 @@ class UITranslator:
             "created_at": session_info.get("created_at", ""),
             "last_updated": session_info.get("last_updated", "")
         }
+
+    def export_synoptic_docx(self, output_filename: Optional[str] = None) -> Tuple[bool, str]:
+        """
+        Export a synoptic DOCX file with translations, references, and modern lines.
+        
+        Args:
+            output_filename: Optional custom filename for the output
+            
+        Returns:
+            Tuple of (success, output_path_or_error_message)
+        """
+        if not self.translation_id:
+            self._log("No translation session active for export", "error")
+            return False, "No translation session active"
+        
+        self._log("Starting synoptic DOCX export", "info")
+        
+        try:
+            # Get session info with source file
+            session_info = get_session_info(self.translation_id)
+            source_file_info = session_info.get("source_file")
+            
+            if not source_file_info or not source_file_info.get("content"):
+                self._log("Source file content not available for export", "error")
+                return False, "Source file content not available for export. Please ensure the original file content was saved during translation."
+            
+            self._log("Found source file content for export", "info")
+            
+            # Create temporary file with source content
+            import tempfile
+            import glob
+            temp_modern_play_path = None
+            
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_file:
+                    temp_file.write(source_file_info["content"])
+                    temp_modern_play_path = temp_file.name
+                
+                self._log(f"Created temporary source file at: {temp_modern_play_path}", "debug")
+                
+                # Get output directory and validate translations exist
+                translations_dir = session_info.get("output_dir", "")
+                if not translations_dir or not os.path.exists(translations_dir):
+                    return False, "Translation files not found. Please complete a translation first."
+                
+                self._log(f"Using translations directory: {translations_dir}", "info")
+                
+                # Check if there are any JSON translation files
+                import glob
+                json_files = glob.glob(os.path.join(translations_dir, "*.json"))
+                if not json_files:
+                    return False, "No translation JSON files found in the output directory."
+                
+                self._log(f"Found {len(json_files)} translation files", "info")
+                
+                # Generate output filename if not provided
+                if not output_filename:
+                    safe_filename = source_file_info.get("filename", "translation").replace(".md", "").replace(" ", "_")
+                    output_filename = f"shakespeare_translation_{safe_filename}.docx"
+                
+                # Ensure output path is in the translations directory
+                output_path = os.path.join(translations_dir, output_filename)
+                self._log(f"Output path: {output_path}", "info")
+                
+                # Import and use FinalOutputGenerator
+                try:
+                    from modules.output.final_output_generator import FinalOutputGenerator
+                    self._log("Imported FinalOutputGenerator successfully", "debug")
+                except ImportError as e:
+                    self._log(f"Failed to import FinalOutputGenerator: {e}", "error")
+                    return False, "Required output generation module not available."
+                
+                # Create generator with our logger
+                generator = FinalOutputGenerator(logger=self.logger)
+                
+                # Generate the synoptic document
+                self._log("Generating synoptic DOCX document...", "info")
+                result_path = generator.generate_final_document(
+                    modern_play_path=temp_modern_play_path,
+                    translations_dir=translations_dir,
+                    output_path=output_path
+                )
+                
+                # Verify the file was created
+                if not os.path.exists(result_path):
+                    return False, f"Export completed but output file not found at: {result_path}"
+                
+                file_size = os.path.getsize(result_path)
+                self._log(f"Synoptic DOCX export completed successfully: {result_path} ({file_size} bytes)", "info")
+                
+                return True, result_path
+                
+            finally:
+                # Clean up temporary file
+                if temp_modern_play_path and os.path.exists(temp_modern_play_path):
+                    try:
+                        os.unlink(temp_modern_play_path)
+                        self._log("Cleaned up temporary source file", "debug")
+                    except Exception as cleanup_error:
+                        self._log(f"Warning: Could not clean up temporary file: {cleanup_error}", "warning")
+        
+        except Exception as e:
+            error_msg = f"Error generating synoptic DOCX: {str(e)}"
+            self._log(error_msg, "error")
+            # Log the full traceback for debugging
+            import traceback
+            self._log(f"Full traceback: {traceback.format_exc()}", "error")
+            return False, error_msg
 
 
 # Create a function to get a singleton instance
