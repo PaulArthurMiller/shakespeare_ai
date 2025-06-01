@@ -60,7 +60,7 @@ class UITranslator:
         if not TRANSLATOR_AVAILABLE:
             self._log("Warning: Translator modules not available. Limited functionality.")
     
-    def _log(self, message: str, level: str = "info") -> None:
+    def _log(self, message: str, level: str = "debug") -> None:
         """
         Log a message using the appropriate logger.
         
@@ -612,6 +612,8 @@ class UITranslator:
         Returns:
             Tuple of (success, output_path_or_error_message)
         """
+        self._log(f"Export called with self.translation_id = '{self.translation_id}'", "error")  # Using error level so it definitely shows
+        
         if not self.translation_id:
             self._log("No translation session active for export", "error")
             return False, "No translation session active"
@@ -619,9 +621,13 @@ class UITranslator:
         self._log("Starting synoptic DOCX export", "info")
         
         try:
+            self._log("About to get session info", "debug")
             # Get session info with source file
             session_info = get_session_info(self.translation_id)
+            self._log("Successfully got session info", "debug")
+
             source_file_info = session_info.get("source_file")
+            self._log(f"Source file info: {source_file_info}", "debug")
             
             if not source_file_info or not source_file_info.get("content"):
                 self._log("Source file content not available for export", "error")
@@ -642,10 +648,33 @@ class UITranslator:
                 self._log(f"Created temporary source file at: {temp_modern_play_path}", "debug")
                 
                 # Get output directory and validate translations exist
-                translations_dir = session_info.get("output_dir", "")
-                if not translations_dir or not os.path.exists(translations_dir):
+                # Get output directory and validate translations exist
+                self._log(f"Session info keys: {list(session_info.keys())}", "debug")
+                self._log(f"Full session info: {session_info}", "debug")
+
+                base_output_dir = session_info.get("output_dir", "")
+                self._log(f"Base output dir from session: '{base_output_dir}'", "debug")
+
+                if not base_output_dir:
+                    self._log("No output_dir found in session info", "error")
                     return False, "Translation files not found. Please complete a translation first."
-                
+
+                # The SceneSaver automatically creates a subdirectory with the translation ID
+                translations_dir = os.path.join(base_output_dir, self.translation_id)
+                self._log(f"Constructed translations_dir: '{translations_dir}'", "debug")
+                self._log(f"Translation ID: '{self.translation_id}'", "debug")
+                self._log(f"Does translations_dir exist? {os.path.exists(translations_dir)}", "debug")
+
+                if not os.path.exists(translations_dir):
+                    # Try the base directory as fallback
+                    translations_dir = base_output_dir
+                    self._log(f"Fallback to base dir: '{translations_dir}'", "debug")
+                    self._log(f"Does base dir exist? {os.path.exists(translations_dir)}", "debug")
+                    
+                if not os.path.exists(translations_dir):
+                    self._log(f"Neither directory exists! translations_dir='{translations_dir}', base='{base_output_dir}'", "error")
+                    return False, f"Translation directory not found: {translations_dir}"
+
                 self._log(f"Using translations directory: {translations_dir}", "info")
                 
                 # Check if there are any JSON translation files
