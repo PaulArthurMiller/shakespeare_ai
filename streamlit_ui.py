@@ -1204,10 +1204,20 @@ elif st.session_state.mode == "Translator":
                                     status_message.success(f"Translation complete! Translated {line_count} lines.")
                                     st.success(f"Translation saved to: {result_dir}")
                                     
+                                    # *** THIS IS THE KEY FIX - SAME AS FULL PLAY ***
+                                    # Get the actual output directory that SceneSaver used (includes translation_id subdirectory)
+                                    actual_output_dir = get_output_dir(st.session_state.translation_id)
+
+                                    # Update the main session info with the correct output directory
+                                    session_info = get_session_info(st.session_state.translation_id)
+                                    session_info["output_dir"] = actual_output_dir
+                                    save_session_info(st.session_state.translation_id, session_info)
+                                    debug_logger.info(f"Updated session info output_dir to: {actual_output_dir}")
+                                    
                                     # Set completion state for export
                                     st.session_state.translation_completed = True
                                     st.session_state.last_translation_result = {
-                                        "output_dir": result_dir,
+                                        "output_dir": actual_output_dir,  # Use actual_output_dir instead of result_dir
                                         "line_count": line_count,
                                         "method": "Full Scene",
                                         "act": act,
@@ -1217,8 +1227,8 @@ elif st.session_state.mode == "Translator":
                                     # Try to read and display part of the translation
                                     try:
                                         scene_id = f"act_{act.lower()}_scene_{scene.lower()}"
-                                        json_path = os.path.join(result_dir, f"{scene_id}.json")
-                                        md_path = os.path.join(result_dir, f"{scene_id}.md")
+                                        json_path = os.path.join(actual_output_dir, f"{scene_id}.json")  # Use actual_output_dir
+                                        md_path = os.path.join(actual_output_dir, f"{scene_id}.md")      # Use actual_output_dir
                                         
                                         if os.path.exists(md_path):
                                             with open(md_path, 'r', encoding='utf-8') as f:
@@ -1227,6 +1237,9 @@ elif st.session_state.mode == "Translator":
                                             st.text_area("Preview", md_content[:500] + "...", height=200)
                                     except Exception as preview_error:
                                         debug_logger.error(f"Error displaying preview: {preview_error}")
+                                    
+                                    # Force rerun to show export button
+                                    st.rerun()
                                 else:
                                     progress_bar.progress(0)
                                     status_message.error("Translation failed")
@@ -1240,6 +1253,10 @@ elif st.session_state.mode == "Translator":
                                 debug_logger.error(f"Stack trace: {traceback.format_exc()}")
                             
                             finally:
+                                # Reset translation state
+                                st.session_state.translation_active = False
+                                st.session_state.cancel_requested = False
+                                
                                 # Clean up temp file
                                 if os.path.exists(temp_path):
                                     os.remove(temp_path)
